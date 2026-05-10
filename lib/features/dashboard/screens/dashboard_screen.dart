@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/currency_formatter.dart';
-import '../../../models/material_model.dart';
-import '../../../models/product_model.dart';
-import '../../../models/size_variant_model.dart';
-import '../../../services/material_service.dart';
-import '../../../services/product_service.dart';
-import '../../../services/simulation_service.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../models/material_model.dart';
+import '../../../../models/product_model.dart';
+import '../../../../models/size_variant_model.dart';
+import '../../../../services/material_service.dart';
+import '../../../../services/product_service.dart';
+import '../../../../services/simulation_service.dart';
 import 'result_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -30,7 +29,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   SizeVariantModel? _selectedSize;
 
   final _quantityController = TextEditingController();
-  bool _isLoading = false;
   int _totalProducts = 0;
   double _totalFabricKg = 0;
 
@@ -58,6 +56,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _selectedProduct = product;
     _selectedSize = null;
     _sizeVariants = await _productService.getSizeVariants(product.id!);
+    if (_sizeVariants.isNotEmpty) {
+      _selectedSize = _sizeVariants.first;
+    }
     setState(() {});
   }
 
@@ -109,16 +110,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Today's Snapshot
             _buildSnapshotCard(),
             const SizedBox(height: 24),
-
-            // Simulator Section
             Text('WHAT-IF SIMULATOR',
                 style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: 16),
-
-            // Material Dropdown
             _buildDropdownCard(
               icon: Icons.inventory_2,
               label: 'I have this material:',
@@ -136,15 +132,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   );
                 }).toList(),
                 onChanged: (id) {
-                  setState(() =>
-                      _selectedMaterial =
-                          _materials.firstWhere((m) => m.id == id));
+                  setState(() => _selectedMaterial =
+                      _materials.firstWhere((m) => m.id == id));
                 },
               ),
             ),
             const SizedBox(height: 12),
-
-            // Quantity Input
             _buildDropdownCard(
               icon: Icons.scale,
               label: 'Quantity:',
@@ -179,8 +172,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
             const SizedBox(height: 12),
-
-            // Product Dropdown
             _buildDropdownCard(
               icon: Icons.checkroom,
               label: 'I want to make:',
@@ -193,8 +184,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 items: _products.map((p) {
                   return DropdownMenuItem(
                     value: p.id,
-                    child:
-                        Text('${p.name} (${CurrencyFormatter.format(p.sellingPrice)}/pc)'),
+                    child: Text('${p.name} (Br ${p.sellingPrice.toStringAsFixed(2)}/pc)'),
                   );
                 }).toList(),
                 onChanged: (id) {
@@ -205,8 +195,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
             const SizedBox(height: 12),
-
-            // Size Dropdown
             if (_sizeVariants.isNotEmpty)
               _buildDropdownCard(
                 icon: Icons.straighten,
@@ -229,9 +217,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   },
                 ),
               ),
+            if (_sizeVariants.isEmpty && _selectedProduct != null)
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Text(
+                  '⚠️ No sizes added for this product. Go to Products tab to add sizes.',
+                  style: TextStyle(color: AppColors.warning, fontSize: 13),
+                ),
+              ),
             const SizedBox(height: 24),
-
-            // Calculate Button
             SizedBox(
               width: double.infinity,
               height: 56,
@@ -264,9 +258,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _snapshotItem(Icons.inventory_2, '${_totalFabricKg.toStringAsFixed(1)} kg', 'Fabric Stock'),
-                _snapshotItem(Icons.checkroom, '$_totalProducts', 'Products'),
-                _snapshotItem(Icons.category, '${_materials.length}', 'Materials'),
+                _snapshotItem(Icons.inventory_2,
+                    '${_totalFabricKg.toStringAsFixed(1)} kg', 'Fabric Stock'),
+                _snapshotItem(
+                    Icons.checkroom, '$_totalProducts', 'Products'),
+                _snapshotItem(
+                    Icons.category, '${_materials.length}', 'Materials'),
               ],
             ),
           ],
@@ -282,7 +279,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         const SizedBox(height: 8),
         Text(value,
             style: const TextStyle(
-                fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.navy)),
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.navy)),
         Text(label, style: Theme.of(context).textTheme.bodyMedium),
       ],
     );
@@ -303,7 +302,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 Icon(icon, color: AppColors.navy, size: 20),
                 const SizedBox(width: 8),
-                Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+                Text(label,
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
               ],
             ),
             const SizedBox(height: 10),

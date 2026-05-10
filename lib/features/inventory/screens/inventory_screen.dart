@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/gsm_calculator.dart';
-import '../../../models/material_model.dart';
-import '../../../services/material_service.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/gsm_calculator.dart';
+import '../../../../models/material_model.dart';
+import '../../../../services/material_service.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -34,12 +33,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
     });
   }
 
-  void _showAddMaterialDialog() {
+  void _showAddMaterialDialog({MaterialModel? existing}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _AddMaterialSheet(onSaved: _loadMaterials),
+      builder: (_) => _MaterialFormSheet(
+        existing: existing,
+        onSaved: _loadMaterials,
+      ),
     );
   }
 
@@ -49,6 +51,31 @@ class _InventoryScreenState extends State<InventoryScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => _GsmCalculatorSheet(),
     );
+  }
+
+  Future<void> _deleteMaterial(MaterialModel material) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Material'),
+        content: Text('Delete ${material.name}? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child:
+                const Text('Delete', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await _service.delete(material.id!);
+      _loadMaterials();
+    }
   }
 
   @override
@@ -67,14 +94,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: _showAddMaterialDialog,
+            onPressed: () => _showAddMaterialDialog(),
             tooltip: 'Add Material',
           ),
         ],
       ),
       body: Column(
         children: [
-          // Filter chips
           Container(
             padding: const EdgeInsets.all(12),
             child: SingleChildScrollView(
@@ -89,13 +115,29 @@ class _InventoryScreenState extends State<InventoryScreen> {
               ),
             ),
           ),
-          // Material list
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _materials.isEmpty
-                    ? const Center(
-                        child: Text('No materials yet. Add some!'))
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.inventory_2,
+                                size: 80,
+                                color:
+                                    AppColors.textSecondary.withOpacity(0.5)),
+                            const SizedBox(height: 16),
+                            const Text('No materials yet.'),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: () => _showAddMaterialDialog(),
+                              icon: const Icon(Icons.add),
+                              label: const Text('ADD FIRST MATERIAL'),
+                            ),
+                          ],
+                        ),
+                      )
                     : ListView.builder(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         itemCount: _materials.length,
@@ -119,7 +161,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
           _loadMaterials();
         },
         selectedColor: AppColors.navy,
-        labelStyle: TextStyle(color: isSelected ? AppColors.white : AppColors.navy),
+        labelStyle: TextStyle(
+            color: isSelected ? AppColors.white : AppColors.navy),
       ),
     );
   }
@@ -144,7 +187,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(material.stockDisplay),
-            Text('Cost: \$${material.costPerUnit.toStringAsFixed(2)}/${material.unit}',
+            Text(
+                'Br ${material.costPerUnit.toStringAsFixed(2)}/${material.unit}',
                 style: const TextStyle(fontSize: 12)),
           ],
         ),
@@ -162,12 +206,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 child: Text('${material.gsm!.toInt()} GSM',
                     style: const TextStyle(fontSize: 12)),
               ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 4),
             IconButton(
-              icon: const Icon(Icons.edit, size: 20),
-              onPressed: () {
-                // Edit functionality
-              },
+              icon:
+                  const Icon(Icons.edit, size: 20, color: AppColors.navy),
+              onPressed: () => _showAddMaterialDialog(existing: material),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete,
+                  size: 20, color: AppColors.error),
+              onPressed: () => _deleteMaterial(material),
             ),
           ],
         ),
@@ -176,16 +224,17 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 }
 
-// Bottom sheet for adding a new material
-class _AddMaterialSheet extends StatefulWidget {
+// ========== ADD/EDIT MATERIAL FORM ==========
+class _MaterialFormSheet extends StatefulWidget {
+  final MaterialModel? existing;
   final VoidCallback onSaved;
-  const _AddMaterialSheet({required this.onSaved});
+  const _MaterialFormSheet({this.existing, required this.onSaved});
 
   @override
-  State<_AddMaterialSheet> createState() => _AddMaterialSheetState();
+  State<_MaterialFormSheet> createState() => _MaterialFormSheetState();
 }
 
-class _AddMaterialSheetState extends State<_AddMaterialSheet> {
+class _MaterialFormSheetState extends State<_MaterialFormSheet> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _stockController = TextEditingController();
@@ -194,6 +243,45 @@ class _AddMaterialSheetState extends State<_AddMaterialSheet> {
   String _category = 'Fabric';
   String _unit = 'kg';
   File? _image;
+
+  bool get _isEditing => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isEditing) {
+      final m = widget.existing!;
+      _nameController.text = m.name;
+      _stockController.text = m.currentStock.toString();
+      _costController.text = m.costPerUnit.toString();
+      _category = m.category;
+      _unit = m.unit;
+      if (m.gsm != null) _gsmController.text = m.gsm!.toString();
+    }
+  }
+
+  Future<void> _save() async {
+    if (_formKey.currentState!.validate()) {
+      final material = MaterialModel(
+        id: widget.existing?.id,
+        name: _nameController.text,
+        category: _category,
+        gsm: _category == 'Fabric' ? double.tryParse(_gsmController.text) : null,
+        unit: _unit,
+        currentStock: double.parse(_stockController.text),
+        costPerUnit: double.parse(_costController.text),
+      );
+
+      if (_isEditing) {
+        await MaterialService().update(material);
+      } else {
+        await MaterialService().create(material);
+      }
+
+      widget.onSaved();
+      Navigator.pop(context);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -213,7 +301,8 @@ class _AddMaterialSheetState extends State<_AddMaterialSheet> {
               children: [
                 Center(
                   child: Container(
-                    width: 40, height: 4,
+                    width: 40,
+                    height: 4,
                     decoration: BoxDecoration(
                       color: AppColors.cardBorder,
                       borderRadius: BorderRadius.circular(2),
@@ -221,10 +310,10 @@ class _AddMaterialSheetState extends State<_AddMaterialSheet> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                const Text('ADD MATERIAL',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                Text(_isEditing ? 'EDIT MATERIAL' : 'ADD MATERIAL',
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 20),
-                // Category
                 DropdownButtonFormField(
                   value: _category,
                   decoration: const InputDecoration(
@@ -236,6 +325,7 @@ class _AddMaterialSheetState extends State<_AddMaterialSheet> {
                     setState(() {
                       _category = v!;
                       _unit = _category == 'Fabric' ? 'kg' : 'pieces';
+                      if (_category != 'Fabric') _gsmController.clear();
                     });
                   },
                 ),
@@ -243,9 +333,9 @@ class _AddMaterialSheetState extends State<_AddMaterialSheet> {
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(
-                      labelText: 'Material Name', border: OutlineInputBorder()),
-                  validator: (v) =>
-                      v?.isEmpty == true ? 'Required' : null,
+                      labelText: 'Material Name',
+                      border: OutlineInputBorder()),
+                  validator: (v) => v?.isEmpty == true ? 'Required' : null,
                 ),
                 const SizedBox(height: 12),
                 if (_category == 'Fabric')
@@ -266,6 +356,8 @@ class _AddMaterialSheetState extends State<_AddMaterialSheet> {
                             labelText: 'Stock ($_unit)',
                             border: const OutlineInputBorder()),
                         keyboardType: TextInputType.number,
+                        validator: (v) =>
+                            v?.isEmpty == true ? 'Required' : null,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -284,34 +376,17 @@ class _AddMaterialSheetState extends State<_AddMaterialSheet> {
                 TextFormField(
                   controller: _costController,
                   decoration: InputDecoration(
-                      labelText: 'Cost per $_unit (\$)',
+                      labelText: 'Cost per $_unit (Br)',
                       border: const OutlineInputBorder()),
                   keyboardType: TextInputType.number,
+                  validator: (v) => v?.isEmpty == true ? 'Required' : null,
                 ),
                 const SizedBox(height: 20),
                 SizedBox(
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: () async {
-                      if (_formKey.currentState!.validate()) {
-                        final material = MaterialModel(
-                          name: _nameController.text,
-                          category: _category,
-                          gsm: _category == 'Fabric'
-                              ? double.tryParse(_gsmController.text)
-                              : null,
-                          unit: _unit,
-                          currentStock:
-                              double.parse(_stockController.text),
-                          costPerUnit:
-                              double.parse(_costController.text),
-                        );
-                        await MaterialService().create(material);
-                        widget.onSaved();
-                        Navigator.pop(context);
-                      }
-                    },
-                    child: const Text('SAVE MATERIAL'),
+                    onPressed: _save,
+                    child: Text(_isEditing ? 'UPDATE MATERIAL' : 'SAVE MATERIAL'),
                   ),
                 ),
               ],
@@ -332,7 +407,7 @@ class _AddMaterialSheetState extends State<_AddMaterialSheet> {
   }
 }
 
-// GSM Calculator Bottom Sheet
+// ========== GSM CALCULATOR ==========
 class _GsmCalculatorSheet extends StatefulWidget {
   @override
   State<_GsmCalculatorSheet> createState() => _GsmCalculatorSheetState();
@@ -348,7 +423,7 @@ class _GsmCalculatorSheetState extends State<_GsmCalculatorSheet> {
     final weight = double.tryParse(_weightController.text);
     final width = double.tryParse(_widthController.text);
     final height = double.tryParse(_heightController.text);
-    if (weight != null && width != null && height != null) {
+    if (weight != null && width != null && height != null && weight > 0) {
       setState(() {
         _calculatedGsm = GsmCalculator.calculateFromSwatch(
           swatchWeightInGrams: weight,
@@ -373,7 +448,8 @@ class _GsmCalculatorSheetState extends State<_GsmCalculatorSheet> {
         children: [
           Center(
             child: Container(
-              width: 40, height: 4,
+              width: 40,
+              height: 4,
               decoration: BoxDecoration(
                 color: AppColors.cardBorder,
                 borderRadius: BorderRadius.circular(2),
@@ -381,10 +457,10 @@ class _GsmCalculatorSheetState extends State<_GsmCalculatorSheet> {
             ),
           ),
           const SizedBox(height: 20),
-          const Text('GSM CALCULATOR',
+          const Text('🧵 GSM CALCULATOR',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          const Text('Cut a swatch, weigh it, and find the exact GSM.',
+          const Text('Cut a swatch, weigh it, find exact GSM.',
               style: TextStyle(color: AppColors.textSecondary)),
           const SizedBox(height: 20),
           TextFormField(
@@ -401,7 +477,8 @@ class _GsmCalculatorSheetState extends State<_GsmCalculatorSheet> {
                 child: TextFormField(
                   controller: _widthController,
                   decoration: const InputDecoration(
-                      labelText: 'Width (cm)', border: OutlineInputBorder()),
+                      labelText: 'Width (cm)',
+                      border: OutlineInputBorder()),
                   keyboardType: TextInputType.number,
                 ),
               ),
@@ -410,7 +487,8 @@ class _GsmCalculatorSheetState extends State<_GsmCalculatorSheet> {
                 child: TextFormField(
                   controller: _heightController,
                   decoration: const InputDecoration(
-                      labelText: 'Height (cm)', border: OutlineInputBorder()),
+                      labelText: 'Height (cm)',
+                      border: OutlineInputBorder()),
                   keyboardType: TextInputType.number,
                 ),
               ),
@@ -425,9 +503,9 @@ class _GsmCalculatorSheetState extends State<_GsmCalculatorSheet> {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                'Your GSM: ${_calculatedGsm!.toInt()}',
+                'GSM: ${_calculatedGsm!.toInt()}',
                 style: const TextStyle(
-                    fontSize: 24,
+                    fontSize: 28,
                     fontWeight: FontWeight.bold,
                     color: AppColors.success),
                 textAlign: TextAlign.center,

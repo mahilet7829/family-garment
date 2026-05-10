@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/currency_formatter.dart';
 import '../../../../models/product_model.dart';
 import '../../../../models/material_model.dart';
 import '../../../../models/size_variant_model.dart';
-import '../../../../models/recipe_item_model.dart';
 import '../../../../services/product_service.dart';
 import '../../../../services/material_service.dart';
 
@@ -18,6 +18,7 @@ class _ProductBuilderScreenState extends State<ProductBuilderScreen> {
   final ProductService _productService = ProductService();
   final MaterialService _materialService = MaterialService();
   List<ProductModel> _products = [];
+  List<MaterialModel> _allMaterials = [];
   bool _isLoading = true;
 
   @override
@@ -29,8 +30,10 @@ class _ProductBuilderScreenState extends State<ProductBuilderScreen> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     final products = await _productService.getAllProducts();
+    final materials = await _materialService.getAll();
     setState(() {
       _products = products;
+      _allMaterials = materials;
       _isLoading = false;
     });
   }
@@ -40,7 +43,23 @@ class _ProductBuilderScreenState extends State<ProductBuilderScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _AddProductSheet(onSaved: _loadData),
+      builder: (_) => _AddProductSheet(
+        allMaterials: _allMaterials,
+        onSaved: _loadData,
+      ),
+    );
+  }
+
+  void _showEditProductDialog(ProductModel product) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _AddProductSheet(
+        allMaterials: _allMaterials,
+        onSaved: _loadData,
+        existingProduct: product,
+      ),
     );
   }
 
@@ -68,13 +87,15 @@ class _ProductBuilderScreenState extends State<ProductBuilderScreen> {
                     children: [
                       Icon(Icons.checkroom,
                           size: 80,
-                          color: AppColors.textSecondary.withOpacity(0.5)),
+                          color:
+                              AppColors.textSecondary.withOpacity(0.5)),
                       const SizedBox(height: 16),
                       const Text('No products yet.'),
                       const SizedBox(height: 16),
-                      ElevatedButton(
+                      ElevatedButton.icon(
                         onPressed: _showAddProductDialog,
-                        child: const Text('CREATE FIRST PRODUCT'),
+                        icon: const Icon(Icons.add),
+                        label: const Text('CREATE FIRST PRODUCT'),
                       ),
                     ],
                   ),
@@ -98,22 +119,40 @@ class _ProductBuilderScreenState extends State<ProductBuilderScreen> {
         title: Text(product.name,
             style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(
-            '${product.category} \$${product.sellingPrice.toStringAsFixed(2)}/pc'),
-        trailing: IconButton(
-          icon: const Icon(Icons.delete, size: 20, color: AppColors.error),
-          onPressed: () async {
-            await _productService.deleteProduct(product.id!);
-            _loadData();
-          },
+            '${product.category}  •  ${CurrencyFormatter.format(product.sellingPrice)}/pc'),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.edit, size: 20, color: AppColors.navy),
+              onPressed: () => _showEditProductDialog(product),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete,
+                  size: 20, color: AppColors.error),
+              onPressed: () async {
+                await _productService.deleteProduct(product.id!);
+                _loadData();
+              },
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
+// ========== ADD/EDIT PRODUCT FORM ==========
 class _AddProductSheet extends StatefulWidget {
+  final List<MaterialModel> allMaterials;
   final VoidCallback onSaved;
-  const _AddProductSheet({required this.onSaved});
+  final ProductModel? existingProduct;
+
+  const _AddProductSheet({
+    required this.allMaterials,
+    required this.onSaved,
+    this.existingProduct,
+  });
 
   @override
   State<_AddProductSheet> createState() => _AddProductSheetState();
@@ -125,14 +164,91 @@ class _AddProductSheetState extends State<_AddProductSheet> {
   final _priceController = TextEditingController();
   String _category = "Men's Wear";
 
-  Future<void> _saveProduct() async {
+  // Size entries
+  final List<_SizeEntry> _sizes = [];
+
+  bool get _isEditing => widget.existingProduct != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isEditing) {
+      final p = widget.existingProduct!;
+      _nameController.text = p.name;
+      _priceController.text = p.sellingPrice.toString();
+      _category = p.category;
+      _loadExistingSizes();
+    } else {
+      _sizes.add(_SizeEntry(nameController: TextEditingController(text: 'Medium')));
+    }
+  }
+
+  Future<void> _loadExistingSizes() async {
+    final variants =
+        await ProductService().getSizeVariants(widget.existingProduct!.id!);
+    for (var v in variants) {
+      _sizes.add(_SizeEntry(
+        nameController: TextEditingController(text: v.sizeName),
+        existingVariant: v,
+      ));
+    }
+    setState(() {});
+  }
+
+  void _addSize() {
+    setState(() {
+      _sizes.add(_SizeEntry(nameController: TextEditingController()));
+    });
+  }
+
+  void _removeSize(int index) {
+    setState(() {
+      _sizes[index].nameController.dispose();
+      _sizes.removeAt(index);
+    });
+  }
+
+  Future<void> _save() async {
     if (_formKey.currentState!.validate()) {
-      final product = ProductModel(
-        name: _nameController.text,
-        category: _category,
-        sellingPrice: double.parse(_priceController.text),
-      );
-      await ProductService().createProduct(product);
+      final productService = ProductService();
+
+      int productId;
+      if (_isEditing) {
+        final product = widget.existingProduct!.copyWith(
+          name: _nameController.text,
+          category: _category,
+          sellingPrice: double.parse(_priceController.text),
+        );
+        await productService.updateProduct(product);
+        productId = product.id!;
+        // Delete old size variants
+        final oldVariants =
+            await productService.getSizeVariants(productId);
+        for (var v in oldVariants) {
+          await productService.deleteSizeVariant(v.id!);
+        }
+      } else {
+        final product = ProductModel(
+          name: _nameController.text,
+          category: _category,
+          sellingPrice: double.parse(_priceController.text),
+        );
+        productId = await productService.createProduct(product);
+      }
+
+      // Save size variants
+      for (var size in _sizes) {
+        if (size.nameController.text.isNotEmpty) {
+          await productService.createSizeVariant(
+            SizeVariantModel(
+              productId: productId,
+              sizeName: size.nameController.text,
+              materialUsage: {},
+            ),
+          );
+        }
+      }
+
       widget.onSaved();
       Navigator.pop(context);
     }
@@ -141,7 +257,7 @@ class _AddProductSheetState extends State<_AddProductSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.6,
+      height: MediaQuery.of(context).size.height * 0.9,
       decoration: const BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -165,9 +281,9 @@ class _AddProductSheetState extends State<_AddProductSheet> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                const Text('CREATE PRODUCT',
-                    style:
-                        TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                Text(_isEditing ? 'EDIT PRODUCT' : 'CREATE PRODUCT',
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: _nameController,
@@ -193,17 +309,67 @@ class _AddProductSheetState extends State<_AddProductSheet> {
                 TextFormField(
                   controller: _priceController,
                   decoration: const InputDecoration(
-                      labelText: 'Selling Price (\$)',
+                      labelText: 'Selling Price (Br)',
                       border: OutlineInputBorder()),
                   keyboardType: TextInputType.number,
                   validator: (v) => v?.isEmpty == true ? 'Required' : null,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
+
+                // SIZES
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('SIZES',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 16)),
+                    TextButton.icon(
+                      onPressed: _addSize,
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Add Size'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ..._sizes.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final size = entry.value;
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: size.nameController,
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                labelText: 'Size Name',
+                                hintText: 'e.g. Small, Medium, Large, XL',
+                                isDense: true,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close,
+                                color: AppColors.error, size: 20),
+                            onPressed: () => _removeSize(index),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+                const SizedBox(height: 20),
+
                 SizedBox(
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: _saveProduct,
-                    child: const Text('SAVE PRODUCT'),
+                    onPressed: _save,
+                    child: Text(
+                        _isEditing ? 'UPDATE PRODUCT' : 'SAVE PRODUCT'),
                   ),
                 ),
               ],
@@ -218,6 +384,19 @@ class _AddProductSheetState extends State<_AddProductSheet> {
   void dispose() {
     _nameController.dispose();
     _priceController.dispose();
+    for (var s in _sizes) {
+      s.nameController.dispose();
+    }
     super.dispose();
   }
+}
+
+class _SizeEntry {
+  final TextEditingController nameController;
+  final SizeVariantModel? existingVariant;
+
+  _SizeEntry({
+    required this.nameController,
+    this.existingVariant,
+  });
 }
