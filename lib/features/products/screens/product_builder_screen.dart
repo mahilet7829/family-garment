@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../models/product_model.dart';
@@ -113,8 +115,16 @@ class _ProductBuilderScreenState extends State<ProductBuilderScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
         leading: CircleAvatar(
+          radius: 28,
           backgroundColor: AppColors.navy.withOpacity(0.1),
-          child: const Icon(Icons.checkroom, color: AppColors.navy),
+          backgroundImage: product.imagePaths.isNotEmpty &&
+                  File(product.imagePaths.first).existsSync()
+              ? FileImage(File(product.imagePaths.first))
+              : null,
+          child: product.imagePaths.isEmpty ||
+                  !File(product.imagePaths.first).existsSync()
+              ? const Icon(Icons.checkroom, color: AppColors.navy)
+              : null,
         ),
         title: Text(product.name,
             style: const TextStyle(fontWeight: FontWeight.w600)),
@@ -164,6 +174,10 @@ class _AddProductSheetState extends State<_AddProductSheet> {
   final _priceController = TextEditingController();
   String _category = "Men's Wear";
 
+  // Image
+  File? _image;
+  List<File> _additionalImages = [];
+
   // Size entries
   final List<_SizeEntry> _sizes = [];
 
@@ -177,9 +191,13 @@ class _AddProductSheetState extends State<_AddProductSheet> {
       _nameController.text = p.name;
       _priceController.text = p.sellingPrice.toString();
       _category = p.category;
+      if (p.imagePaths.isNotEmpty && File(p.imagePaths.first).existsSync()) {
+        _image = File(p.imagePaths.first);
+      }
       _loadExistingSizes();
     } else {
-      _sizes.add(_SizeEntry(nameController: TextEditingController(text: 'Medium')));
+      _sizes.add(_SizeEntry(
+          nameController: TextEditingController(text: 'Medium')));
     }
   }
 
@@ -208,9 +226,46 @@ class _AddProductSheetState extends State<_AddProductSheet> {
     });
   }
 
+  // IMAGE METHODS
+  Future<void> _pickMainImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 800,
+      maxHeight: 800,
+    );
+    if (picked != null) {
+      setState(() {
+        _image = File(picked.path);
+      });
+    }
+  }
+
+  void _removeMainImage() {
+    setState(() {
+      _image = null;
+    });
+  }
+
   Future<void> _save() async {
     if (_formKey.currentState!.validate()) {
       final productService = ProductService();
+
+      // Save images to local storage
+      List<String> imagePaths = [];
+      final appDir = Directory('${Directory.current.path}/app_documents/images');
+      if (!await appDir.exists()) {
+        await appDir.create(recursive: true);
+      }
+
+      if (_image != null) {
+        final fileName =
+            'product_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final savedImage = await _image!.copy('${appDir.path}/$fileName');
+        imagePaths.add(savedImage.path);
+      } else if (_isEditing && widget.existingProduct!.imagePaths.isNotEmpty) {
+        imagePaths = List.from(widget.existingProduct!.imagePaths);
+      }
 
       int productId;
       if (_isEditing) {
@@ -218,6 +273,7 @@ class _AddProductSheetState extends State<_AddProductSheet> {
           name: _nameController.text,
           category: _category,
           sellingPrice: double.parse(_priceController.text),
+          imagePaths: imagePaths,
         );
         await productService.updateProduct(product);
         productId = product.id!;
@@ -232,6 +288,7 @@ class _AddProductSheetState extends State<_AddProductSheet> {
           name: _nameController.text,
           category: _category,
           sellingPrice: double.parse(_priceController.text),
+          imagePaths: imagePaths,
         );
         productId = await productService.createProduct(product);
       }
@@ -257,7 +314,7 @@ class _AddProductSheetState extends State<_AddProductSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.9,
+      height: MediaQuery.of(context).size.height * 0.95,
       decoration: const BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -285,6 +342,8 @@ class _AddProductSheetState extends State<_AddProductSheet> {
                     style: const TextStyle(
                         fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 20),
+
+                // Name
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(
@@ -293,6 +352,8 @@ class _AddProductSheetState extends State<_AddProductSheet> {
                   validator: (v) => v?.isEmpty == true ? 'Required' : null,
                 ),
                 const SizedBox(height: 12),
+
+                // Category
                 DropdownButtonFormField(
                   value: _category,
                   decoration: const InputDecoration(
@@ -306,6 +367,8 @@ class _AddProductSheetState extends State<_AddProductSheet> {
                   onChanged: (v) => setState(() => _category = v!),
                 ),
                 const SizedBox(height: 12),
+
+                // Price
                 TextFormField(
                   controller: _priceController,
                   decoration: const InputDecoration(
@@ -314,6 +377,51 @@ class _AddProductSheetState extends State<_AddProductSheet> {
                   keyboardType: TextInputType.number,
                   validator: (v) => v?.isEmpty == true ? 'Required' : null,
                 ),
+                const SizedBox(height: 20),
+
+                // PRODUCT IMAGE
+                const Text('Product Image (optional)',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 14)),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: _pickMainImage,
+                  child: Container(
+                    width: double.infinity,
+                    height: 180,
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.cardBorder),
+                    ),
+                    child: _image != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.file(_image!, fit: BoxFit.cover),
+                          )
+                        : const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.add_a_photo,
+                                  color: AppColors.textSecondary, size: 40),
+                              SizedBox(height: 8),
+                              Text('Tap to Add Product Photo',
+                                  style: TextStyle(
+                                      color: AppColors.textSecondary)),
+                            ],
+                          ),
+                  ),
+                ),
+                if (_image != null) ...[
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: _removeMainImage,
+                    icon: const Icon(Icons.delete,
+                        color: AppColors.error, size: 18),
+                    label: const Text('Remove Image',
+                        style: TextStyle(color: AppColors.error)),
+                  ),
+                ],
                 const SizedBox(height: 20),
 
                 // SIZES
@@ -347,7 +455,8 @@ class _AddProductSheetState extends State<_AddProductSheet> {
                               decoration: const InputDecoration(
                                 border: OutlineInputBorder(),
                                 labelText: 'Size Name',
-                                hintText: 'e.g. Small, Medium, Large, XL',
+                                hintText:
+                                    'e.g. Small, Medium, Large, XL',
                                 isDense: true,
                               ),
                             ),
@@ -364,6 +473,7 @@ class _AddProductSheetState extends State<_AddProductSheet> {
                 }),
                 const SizedBox(height: 20),
 
+                // Save Button
                 SizedBox(
                   height: 50,
                   child: ElevatedButton(

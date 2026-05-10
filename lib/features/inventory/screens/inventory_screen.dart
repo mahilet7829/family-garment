@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/gsm_calculator.dart';
 import '../../../../models/material_model.dart';
@@ -178,8 +179,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
         leading: CircleAvatar(
+          radius: 28,
           backgroundColor: stockColor.withOpacity(0.1),
-          child: Icon(Icons.inventory_2, color: stockColor),
+          backgroundImage: material.imagePath != null &&
+                  File(material.imagePath!).existsSync()
+              ? FileImage(File(material.imagePath!))
+              : null,
+          child: material.imagePath == null ||
+                  !File(material.imagePath!).existsSync()
+              ? Icon(Icons.inventory_2, color: stockColor)
+              : null,
         ),
         title: Text(material.name,
             style: const TextStyle(fontWeight: FontWeight.w600)),
@@ -257,19 +266,60 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
       _category = m.category;
       _unit = m.unit;
       if (m.gsm != null) _gsmController.text = m.gsm!.toString();
+      if (m.imagePath != null && File(m.imagePath!).existsSync()) {
+        _image = File(m.imagePath!);
+      }
     }
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 800,
+      maxHeight: 800,
+    );
+    if (picked != null) {
+      setState(() {
+        _image = File(picked.path);
+      });
+    }
+  }
+
+  void _removeImage() {
+    setState(() {
+      _image = null;
+    });
   }
 
   Future<void> _save() async {
     if (_formKey.currentState!.validate()) {
+      // Save image to app's local storage if picked
+      String? imagePath;
+      if (_image != null) {
+        final appDir = Directory(
+            '${(await getApplicationDocumentsDirectory()).path}/images');
+        if (!await appDir.exists()) {
+          await appDir.create(recursive: true);
+        }
+        final fileName =
+            'material_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final savedImage = await _image!.copy('${appDir.path}/$fileName');
+        imagePath = savedImage.path;
+      } else if (_isEditing && widget.existing?.imagePath != null) {
+        imagePath = widget.existing!.imagePath;
+      }
+
       final material = MaterialModel(
         id: widget.existing?.id,
         name: _nameController.text,
         category: _category,
-        gsm: _category == 'Fabric' ? double.tryParse(_gsmController.text) : null,
+        gsm:
+            _category == 'Fabric' ? double.tryParse(_gsmController.text) : null,
         unit: _unit,
         currentStock: double.parse(_stockController.text),
         costPerUnit: double.parse(_costController.text),
+        imagePath: imagePath,
       );
 
       if (_isEditing) {
@@ -286,7 +336,7 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
+      height: MediaQuery.of(context).size.height * 0.9,
       decoration: const BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -314,6 +364,8 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
                     style: const TextStyle(
                         fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 20),
+
+                // Category
                 DropdownButtonFormField(
                   value: _category,
                   decoration: const InputDecoration(
@@ -330,6 +382,8 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
                   },
                 ),
                 const SizedBox(height: 12),
+
+                // Name
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(
@@ -338,6 +392,8 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
                   validator: (v) => v?.isEmpty == true ? 'Required' : null,
                 ),
                 const SizedBox(height: 12),
+
+                // GSM (only for Fabric)
                 if (_category == 'Fabric')
                   TextFormField(
                     controller: _gsmController,
@@ -347,6 +403,8 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
                     keyboardType: TextInputType.number,
                   ),
                 if (_category == 'Fabric') const SizedBox(height: 12),
+
+                // Stock
                 Row(
                   children: [
                     Expanded(
@@ -373,6 +431,8 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
                   ],
                 ),
                 const SizedBox(height: 12),
+
+                // Cost
                 TextFormField(
                   controller: _costController,
                   decoration: InputDecoration(
@@ -382,11 +442,69 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
                   validator: (v) => v?.isEmpty == true ? 'Required' : null,
                 ),
                 const SizedBox(height: 20),
+
+                // IMAGE PICKER
+                const Text('Material Image (optional)',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 14)),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    GestureDetector(
+                      onTap: _pickImage,
+                      child: Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          color: AppColors.background,
+                          borderRadius: BorderRadius.circular(12),
+                          border:
+                              Border.all(color: AppColors.cardBorder),
+                        ),
+                        child: _image != null
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.file(_image!,
+                                    fit: BoxFit.cover),
+                              )
+                            : const Column(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.add_a_photo,
+                                      color: AppColors.textSecondary,
+                                      size: 30),
+                                  SizedBox(height: 4),
+                                  Text('Add Photo',
+                                      style: TextStyle(
+                                          fontSize: 10,
+                                          color:
+                                              AppColors.textSecondary)),
+                                ],
+                              ),
+                      ),
+                    ),
+                    if (_image != null) ...[
+                      const SizedBox(width: 12),
+                      IconButton(
+                        icon: const Icon(Icons.delete,
+                            color: AppColors.error, size: 28),
+                        onPressed: _removeImage,
+                        tooltip: 'Remove image',
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // Save Button
                 SizedBox(
                   height: 50,
                   child: ElevatedButton(
                     onPressed: _save,
-                    child: Text(_isEditing ? 'UPDATE MATERIAL' : 'SAVE MATERIAL'),
+                    child: Text(_isEditing
+                        ? 'UPDATE MATERIAL'
+                        : 'SAVE MATERIAL'),
                   ),
                 ),
               ],
@@ -405,6 +523,16 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
     _gsmController.dispose();
     super.dispose();
   }
+}
+
+// Need this helper to get app directory
+Future<Directory> getApplicationDocumentsDirectory() async {
+  final directory = Directory(
+      '${Directory.current.path}/app_documents');
+  if (!await directory.exists()) {
+    await directory.create(recursive: true);
+  }
+  return directory;
 }
 
 // ========== GSM CALCULATOR ==========
