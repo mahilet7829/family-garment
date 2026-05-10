@@ -295,7 +295,7 @@ class _AddProductSheetState extends State<_AddProductSheet> {
                           for (var recipeEntry in _recipeEntries) {
                             if (recipeEntry.material != null && sizeEntry.materialQuantities.containsKey(recipeEntry)) {
                               materialUsage[recipeEntry.material!.id!] =
-                                  sizeEntry.materialQuantities[recipeEntry] ] ?? 1.0;
+                                  final qtyController = entry.materialQuantities[recipeEntry] ?? TextEditingController(text: '1');
                             }
                           }
                           if (sizeEntry.nameController.text.isNotEmpty) {
