@@ -1,3 +1,4 @@
+import 'gsm_calculator.dart';
 /// Calculates how many garments can be produced from available materials.
 class YieldCalculator {
   /// Calculate maximum pieces from available fabric.

@@ -1,3 +1,4 @@
+import '../core/utils/gsm_calculator.dart';
 /// Represents a raw material in inventory.
 /// Can be Fabric (with GSM), Trim, or Packaging.
 class MaterialModel {
@@ -104,4 +105,3 @@ class MaterialModel {
 }
 
 // Need to import this for the stockDisplay method
-import '../core/utils/gsm_calculator.dart';

@@ -156,7 +156,7 @@ class SimulationService {
       totalCost: totalCost,
       totalRevenue: totalRevenue,
       netProfit: netProfit,
-      costPerPiece: costPerPiece,
+      costPerPiece: costPerPiece.toDouble(),
       limitingFactor: limitingFactor,
     );
   }
