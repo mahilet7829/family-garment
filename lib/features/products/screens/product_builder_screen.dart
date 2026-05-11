@@ -4,10 +4,8 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../models/product_model.dart';
-import '../../../../models/material_model.dart';
 import '../../../../models/size_variant_model.dart';
 import '../../../../services/product_service.dart';
-import '../../../../services/material_service.dart';
 
 class ProductBuilderScreen extends StatefulWidget {
   const ProductBuilderScreen({super.key});
@@ -18,9 +16,7 @@ class ProductBuilderScreen extends StatefulWidget {
 
 class _ProductBuilderScreenState extends State<ProductBuilderScreen> {
   final ProductService _productService = ProductService();
-  final MaterialService _materialService = MaterialService();
   List<ProductModel> _products = [];
-  List<MaterialModel> _allMaterials = [];
   bool _isLoading = true;
 
   @override
@@ -31,38 +27,60 @@ class _ProductBuilderScreenState extends State<ProductBuilderScreen> {
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    final products = await _productService.getAllProducts();
-    final materials = await _materialService.getAll();
-    setState(() {
-      _products = products;
-      _allMaterials = materials;
-      _isLoading = false;
-    });
+    try {
+      final products = await _productService.getAllProducts();
+      setState(() {
+        _products = products;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
   }
 
-  void _showAddProductDialog() {
+  void _showAddDialog() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _AddProductSheet(
-        allMaterials: _allMaterials,
-        onSaved: _loadData,
-      ),
+      builder: (_) => AddProductSheet(onSaved: _loadData),
     );
   }
 
-  void _showEditProductDialog(ProductModel product) {
+  void _showEditDialog(ProductModel product) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _AddProductSheet(
-        allMaterials: _allMaterials,
+      builder: (_) => AddProductSheet(
         onSaved: _loadData,
-        existingProduct: product,
+        existing: product,
       ),
     );
+  }
+
+  Future<void> _deleteProduct(ProductModel product) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Product'),
+        content: Text('Delete ${product.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await _productService.deleteProduct(product.id!);
+      _loadData();
+    }
   }
 
   @override
@@ -76,7 +94,7 @@ class _ProductBuilderScreenState extends State<ProductBuilderScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: _showAddProductDialog,
+            onPressed: _showAddDialog,
           ),
         ],
       ),
@@ -89,13 +107,12 @@ class _ProductBuilderScreenState extends State<ProductBuilderScreen> {
                     children: [
                       Icon(Icons.checkroom,
                           size: 80,
-                          color:
-                              AppColors.textSecondary.withOpacity(0.5)),
+                          color: AppColors.textSecondary.withOpacity(0.5)),
                       const SizedBox(height: 16),
                       const Text('No products yet.'),
                       const SizedBox(height: 16),
                       ElevatedButton.icon(
-                        onPressed: _showAddProductDialog,
+                        onPressed: _showAddDialog,
                         icon: const Icon(Icons.add),
                         label: const Text('CREATE FIRST PRODUCT'),
                       ),
@@ -105,201 +122,201 @@ class _ProductBuilderScreenState extends State<ProductBuilderScreen> {
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: _products.length,
-                  itemBuilder: (_, i) => _productCard(_products[i]),
+                  itemBuilder: (_, i) {
+                    final product = _products[i];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          radius: 28,
+                          backgroundColor: AppColors.navy.withOpacity(0.1),
+                          backgroundImage: product.imagePaths.isNotEmpty &&
+                                  File(product.imagePaths.first).existsSync()
+                              ? FileImage(File(product.imagePaths.first))
+                              : null,
+                          child: product.imagePaths.isEmpty ||
+                                  !File(product.imagePaths.first).existsSync()
+                              ? const Icon(Icons.checkroom, color: AppColors.navy)
+                              : null,
+                        ),
+                        title: Text(product.name,
+                            style: const TextStyle(fontWeight: FontWeight.w600)),
+                        subtitle: Text(
+                            '${product.category}  •  Br ${product.sellingPrice.toStringAsFixed(2)}/pc'),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit, size: 20, color: AppColors.navy),
+                              onPressed: () => _showEditDialog(product),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, size: 20, color: AppColors.error),
+                              onPressed: () => _deleteProduct(product),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
     );
   }
-
-  Widget _productCard(ProductModel product) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: CircleAvatar(
-          radius: 28,
-          backgroundColor: AppColors.navy.withOpacity(0.1),
-          backgroundImage: product.imagePaths.isNotEmpty &&
-                  File(product.imagePaths.first).existsSync()
-              ? FileImage(File(product.imagePaths.first))
-              : null,
-          child: product.imagePaths.isEmpty ||
-                  !File(product.imagePaths.first).existsSync()
-              ? const Icon(Icons.checkroom, color: AppColors.navy)
-              : null,
-        ),
-        title: Text(product.name,
-            style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(
-            '${product.category}  •  ${CurrencyFormatter.format(product.sellingPrice)}/pc'),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.edit, size: 20, color: AppColors.navy),
-              onPressed: () => _showEditProductDialog(product),
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete,
-                  size: 20, color: AppColors.error),
-              onPressed: () async {
-                await _productService.deleteProduct(product.id!);
-                _loadData();
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
-// ========== ADD/EDIT PRODUCT FORM ==========
-class _AddProductSheet extends StatefulWidget {
-  final List<MaterialModel> allMaterials;
+// ========== ADD/EDIT PRODUCT SHEET ==========
+class AddProductSheet extends StatefulWidget {
   final VoidCallback onSaved;
-  final ProductModel? existingProduct;
+  final ProductModel? existing;
 
-  const _AddProductSheet({
-    required this.allMaterials,
+  const AddProductSheet({
+    super.key,
     required this.onSaved,
-    this.existingProduct,
+    this.existing,
   });
 
   @override
-  State<_AddProductSheet> createState() => _AddProductSheetState();
+  State<AddProductSheet> createState() => _AddProductSheetState();
 }
 
-class _AddProductSheetState extends State<_AddProductSheet> {
+class _AddProductSheetState extends State<AddProductSheet> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _priceController = TextEditingController();
   String _category = "Men's Wear";
-
-  // Image
   File? _image;
-  List<File> _additionalImages = [];
 
-  // Size entries
-  final List<_SizeEntry> _sizes = [];
+  // Sizes
+  final List<TextEditingController> _sizeControllers = [];
 
-  bool get _isEditing => widget.existingProduct != null;
+  bool get _isEditing => widget.existing != null;
 
   @override
   void initState() {
     super.initState();
     if (_isEditing) {
-      final p = widget.existingProduct!;
+      final p = widget.existing!;
       _nameController.text = p.name;
       _priceController.text = p.sellingPrice.toString();
       _category = p.category;
       if (p.imagePaths.isNotEmpty && File(p.imagePaths.first).existsSync()) {
         _image = File(p.imagePaths.first);
       }
-      _loadExistingSizes();
     } else {
-      _sizes.add(_SizeEntry(
-          nameController: TextEditingController(text: 'Medium')));
+      _sizeControllers.add(TextEditingController(text: 'Medium'));
     }
+    _loadExistingSizes();
   }
 
   Future<void> _loadExistingSizes() async {
-    final variants =
-        await ProductService().getSizeVariants(widget.existingProduct!.id!);
-    for (var v in variants) {
-      _sizes.add(_SizeEntry(
-        nameController: TextEditingController(text: v.sizeName),
-        existingVariant: v,
-      ));
+    if (_isEditing) {
+      final variants =
+          await ProductService().getSizeVariants(widget.existing!.id!);
+      for (var v in variants) {
+        _sizeControllers.add(TextEditingController(text: v.sizeName));
+      }
+      setState(() {});
     }
-    setState(() {});
   }
 
   void _addSize() {
     setState(() {
-      _sizes.add(_SizeEntry(nameController: TextEditingController()));
+      _sizeControllers.add(TextEditingController());
     });
   }
 
   void _removeSize(int index) {
     setState(() {
-      _sizes[index].nameController.dispose();
-      _sizes.removeAt(index);
+      _sizeControllers[index].dispose();
+      _sizeControllers.removeAt(index);
     });
   }
 
-  // IMAGE METHODS
-  Future<void> _pickMainImage() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 800,
-      maxHeight: 800,
-    );
-    if (picked != null) {
-      setState(() {
-        _image = File(picked.path);
-      });
+  Future<void> _pickImage() async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        maxHeight: 800,
+      );
+      if (picked != null) {
+        setState(() {
+          _image = File(picked.path);
+        });
+      }
+    } catch (e) {
+      // User cancelled or permission denied
     }
   }
 
-  void _removeMainImage() {
+  void _removeImage() {
     setState(() {
       _image = null;
     });
   }
 
   Future<void> _save() async {
-    if (_formKey.currentState!.validate()) {
+    if (!_formKey.currentState!.validate()) return;
+
+    // Show loading
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Saving...'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+
+    try {
       final productService = ProductService();
 
-      // Save images to local storage
+      // Save image
       List<String> imagePaths = [];
-      final appDir = Directory('${Directory.current.path}/app_documents/images');
-      if (!await appDir.exists()) {
-        await appDir.create(recursive: true);
-      }
-
       if (_image != null) {
-        final fileName =
-            'product_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final appDir = Directory('${Directory.current.path}/app_documents/images');
+        if (!await appDir.exists()) {
+          await appDir.create(recursive: true);
+        }
+        final fileName = 'product_${DateTime.now().millisecondsSinceEpoch}.jpg';
         final savedImage = await _image!.copy('${appDir.path}/$fileName');
         imagePaths.add(savedImage.path);
-      } else if (_isEditing && widget.existingProduct!.imagePaths.isNotEmpty) {
-        imagePaths = List.from(widget.existingProduct!.imagePaths);
+      } else if (_isEditing && widget.existing!.imagePaths.isNotEmpty) {
+        imagePaths = List.from(widget.existing!.imagePaths);
       }
 
       int productId;
       if (_isEditing) {
-        final product = widget.existingProduct!.copyWith(
-          name: _nameController.text,
+        final product = widget.existing!.copyWith(
+          name: _nameController.text.trim(),
           category: _category,
-          sellingPrice: double.parse(_priceController.text),
+          sellingPrice: double.parse(_priceController.text.trim()),
           imagePaths: imagePaths,
         );
         await productService.updateProduct(product);
         productId = product.id!;
-        // Delete old size variants
-        final oldVariants =
-            await productService.getSizeVariants(productId);
+        // Delete old sizes
+        final oldVariants = await productService.getSizeVariants(productId);
         for (var v in oldVariants) {
           await productService.deleteSizeVariant(v.id!);
         }
       } else {
         final product = ProductModel(
-          name: _nameController.text,
+          name: _nameController.text.trim(),
           category: _category,
-          sellingPrice: double.parse(_priceController.text),
+          sellingPrice: double.parse(_priceController.text.trim()),
           imagePaths: imagePaths,
         );
         productId = await productService.createProduct(product);
       }
 
-      // Save size variants
-      for (var size in _sizes) {
-        if (size.nameController.text.isNotEmpty) {
+      // Save sizes
+      for (var controller in _sizeControllers) {
+        final name = controller.text.trim();
+        if (name.isNotEmpty) {
           await productService.createSizeVariant(
             SizeVariantModel(
               productId: productId,
-              sizeName: size.nameController.text,
+              sizeName: name,
               materialUsage: {},
             ),
           );
@@ -307,7 +324,25 @@ class _AddProductSheetState extends State<_AddProductSheet> {
       }
 
       widget.onSaved();
-      Navigator.pop(context);
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_isEditing ? '✅ Product updated!' : '✅ Product created!'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
 
@@ -327,6 +362,7 @@ class _AddProductSheetState extends State<_AddProductSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Handle
                 Center(
                   child: Container(
                     width: 40,
@@ -339,31 +375,30 @@ class _AddProductSheetState extends State<_AddProductSheet> {
                 ),
                 const SizedBox(height: 20),
                 Text(_isEditing ? 'EDIT PRODUCT' : 'CREATE PRODUCT',
-                    style: const TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.bold)),
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 20),
 
                 // Name
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(
-                      labelText: 'Product Name',
-                      border: OutlineInputBorder()),
-                  validator: (v) => v?.isEmpty == true ? 'Required' : null,
+                    labelText: 'Product Name',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
                 ),
                 const SizedBox(height: 12),
 
                 // Category
-                DropdownButtonFormField(
+                DropdownButtonFormField<String>(
                   value: _category,
                   decoration: const InputDecoration(
-                      labelText: 'Category', border: OutlineInputBorder()),
-                  items: [
-                    "Men's Wear",
-                    "Women's Wear",
-                    "Kids Wear",
-                    "Infants"
-                  ].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                    labelText: 'Category',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: ["Men's Wear", "Women's Wear", "Kids Wear", "Infants"]
+                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      .toList(),
                   onChanged: (v) => setState(() => _category = v!),
                 ),
                 const SizedBox(height: 12),
@@ -372,20 +407,24 @@ class _AddProductSheetState extends State<_AddProductSheet> {
                 TextFormField(
                   controller: _priceController,
                   decoration: const InputDecoration(
-                      labelText: 'Selling Price (Br)',
-                      border: OutlineInputBorder()),
+                    labelText: 'Selling Price (Br)',
+                    border: OutlineInputBorder(),
+                  ),
                   keyboardType: TextInputType.number,
-                  validator: (v) => v?.isEmpty == true ? 'Required' : null,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Required';
+                    if (double.tryParse(v.trim()) == null) return 'Enter a valid number';
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 20),
 
-                // PRODUCT IMAGE
+                // Image
                 const Text('Product Image (optional)',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 14)),
+                    style: TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 GestureDetector(
-                  onTap: _pickMainImage,
+                  onTap: _pickImage,
                   child: Container(
                     width: double.infinity,
                     height: 180,
@@ -405,9 +444,8 @@ class _AddProductSheetState extends State<_AddProductSheet> {
                               Icon(Icons.add_a_photo,
                                   color: AppColors.textSecondary, size: 40),
                               SizedBox(height: 8),
-                              Text('Tap to Add Product Photo',
-                                  style: TextStyle(
-                                      color: AppColors.textSecondary)),
+                              Text('Tap to Add Photo',
+                                  style: TextStyle(color: AppColors.textSecondary)),
                             ],
                           ),
                   ),
@@ -415,22 +453,20 @@ class _AddProductSheetState extends State<_AddProductSheet> {
                 if (_image != null) ...[
                   const SizedBox(height: 8),
                   TextButton.icon(
-                    onPressed: _removeMainImage,
-                    icon: const Icon(Icons.delete,
-                        color: AppColors.error, size: 18),
+                    onPressed: _removeImage,
+                    icon: const Icon(Icons.delete, color: AppColors.error, size: 18),
                     label: const Text('Remove Image',
                         style: TextStyle(color: AppColors.error)),
                   ),
                 ],
                 const SizedBox(height: 20),
 
-                // SIZES
+                // Sizes
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text('SIZES',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 16)),
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
                     TextButton.icon(
                       onPressed: _addSize,
                       icon: const Icon(Icons.add, size: 18),
@@ -439,24 +475,22 @@ class _AddProductSheetState extends State<_AddProductSheet> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                ..._sizes.asMap().entries.map((entry) {
+                ..._sizeControllers.asMap().entries.map((entry) {
                   final index = entry.key;
-                  final size = entry.value;
+                  final controller = entry.value;
                   return Card(
                     margin: const EdgeInsets.only(bottom: 8),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       child: Row(
                         children: [
                           Expanded(
                             child: TextFormField(
-                              controller: size.nameController,
+                              controller: controller,
                               decoration: const InputDecoration(
                                 border: OutlineInputBorder(),
                                 labelText: 'Size Name',
-                                hintText:
-                                    'e.g. Small, Medium, Large, XL',
+                                hintText: 'e.g. Small, Medium, Large',
                                 isDense: true,
                               ),
                             ),
@@ -478,10 +512,17 @@ class _AddProductSheetState extends State<_AddProductSheet> {
                   height: 50,
                   child: ElevatedButton(
                     onPressed: _save,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.success,
+                      foregroundColor: AppColors.white,
+                    ),
                     child: Text(
-                        _isEditing ? 'UPDATE PRODUCT' : 'SAVE PRODUCT'),
+                      _isEditing ? 'UPDATE PRODUCT' : 'CREATE PRODUCT',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
+                const SizedBox(height: 20),
               ],
             ),
           ),
@@ -494,19 +535,9 @@ class _AddProductSheetState extends State<_AddProductSheet> {
   void dispose() {
     _nameController.dispose();
     _priceController.dispose();
-    for (var s in _sizes) {
-      s.nameController.dispose();
+    for (var c in _sizeControllers) {
+      c.dispose();
     }
     super.dispose();
   }
-}
-
-class _SizeEntry {
-  final TextEditingController nameController;
-  final SizeVariantModel? existingVariant;
-
-  _SizeEntry({
-    required this.nameController,
-    this.existingVariant,
-  });
 }

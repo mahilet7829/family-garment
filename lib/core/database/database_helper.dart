@@ -21,8 +21,9 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -116,5 +117,17 @@ class DatabaseHelper {
         'CREATE INDEX idx_production_logs_product ON production_logs(productId)');
     await db.execute(
         'CREATE INDEX idx_production_logs_date ON production_logs(producedAt)');
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Add imagePaths column if it doesn't exist
+      try {
+        await db.execute(
+            'ALTER TABLE products ADD COLUMN imagePaths TEXT DEFAULT ""');
+      } catch (e) {
+        // Column might already exist, ignore
+      }
+    }
   }
 }
