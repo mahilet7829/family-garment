@@ -217,8 +217,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
               ),
             const SizedBox(width: 4),
             IconButton(
-              icon:
-                  const Icon(Icons.edit, size: 20, color: AppColors.navy),
+              icon: const Icon(Icons.edit, size: 20, color: AppColors.navy),
               onPressed: () => _showAddMaterialDialog(existing: material),
             ),
             IconButton(
@@ -294,11 +293,9 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
 
   Future<void> _save() async {
     if (_formKey.currentState!.validate()) {
-      // Save image to app's local storage if picked
       String? imagePath;
       if (_image != null) {
-        final appDir = Directory(
-            '${(await getApplicationDocumentsDirectory()).path}/images');
+        final appDir = Directory('${Directory.current.path}/app_documents/images');
         if (!await appDir.exists()) {
           await appDir.create(recursive: true);
         }
@@ -314,8 +311,9 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
         id: widget.existing?.id,
         name: _nameController.text,
         category: _category,
-        gsm:
-            _category == 'Fabric' ? double.tryParse(_gsmController.text) : null,
+        gsm: _category == 'Fabric'
+            ? double.tryParse(_gsmController.text)
+            : null,
         unit: _unit,
         currentStock: double.parse(_stockController.text),
         costPerUnit: double.parse(_costController.text),
@@ -335,19 +333,20 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
     return Container(
       height: MediaQuery.of(context).size.height * 0.9,
       decoration: const BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-     child: Padding(
-  padding: EdgeInsets.only(
-    left: 20,
-    right: 20,
-    top: 20,
-    bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-  ),
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: bottomPadding + 20,
+        ),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -369,14 +368,13 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
                     style: const TextStyle(
                         fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 20),
-
-                // Category
                 DropdownButtonFormField(
                   value: _category,
                   decoration: const InputDecoration(
                       labelText: 'Category', border: OutlineInputBorder()),
                   items: ['Fabric', 'Trim', 'Packaging']
-                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      .map((c) =>
+                          DropdownMenuItem(value: c, child: Text(c)))
                       .toList(),
                   onChanged: (v) {
                     setState(() {
@@ -387,18 +385,15 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
                   },
                 ),
                 const SizedBox(height: 12),
-
-                // Name
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(
                       labelText: 'Material Name',
                       border: OutlineInputBorder()),
-                  validator: (v) => v?.isEmpty == true ? 'Required' : null,
+                  validator: (v) =>
+                      v?.isEmpty == true ? 'Required' : null,
                 ),
                 const SizedBox(height: 12),
-
-                // GSM (only for Fabric)
                 if (_category == 'Fabric')
                   TextFormField(
                     controller: _gsmController,
@@ -408,8 +403,6 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
                     keyboardType: TextInputType.number,
                   ),
                 if (_category == 'Fabric') const SizedBox(height: 12),
-
-                // Stock
                 Row(
                   children: [
                     Expanded(
@@ -428,7 +421,8 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 14),
                       decoration: BoxDecoration(
-                        border: Border.all(color: AppColors.cardBorder),
+                        border:
+                            Border.all(color: AppColors.cardBorder),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(_unit),
@@ -436,19 +430,16 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
                   ],
                 ),
                 const SizedBox(height: 12),
-
-                // Cost
                 TextFormField(
                   controller: _costController,
                   decoration: InputDecoration(
                       labelText: 'Cost per $_unit (Br)',
                       border: const OutlineInputBorder()),
                   keyboardType: TextInputType.number,
-                  validator: (v) => v?.isEmpty == true ? 'Required' : null,
+                  validator: (v) =>
+                      v?.isEmpty == true ? 'Required' : null,
                 ),
                 const SizedBox(height: 20),
-
-                // IMAGE PICKER
                 const Text('Material Image (optional)',
                     style: TextStyle(
                         fontWeight: FontWeight.w600, fontSize: 14)),
@@ -463,12 +454,13 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
                         decoration: BoxDecoration(
                           color: AppColors.background,
                           borderRadius: BorderRadius.circular(12),
-                          border:
-                              Border.all(color: AppColors.cardBorder),
+                          border: Border.all(
+                              color: AppColors.cardBorder),
                         ),
                         child: _image != null
                             ? ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius:
+                                    BorderRadius.circular(12),
                                 child: Image.file(_image!,
                                     fit: BoxFit.cover),
                               )
@@ -483,8 +475,8 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
                                   Text('Add Photo',
                                       style: TextStyle(
                                           fontSize: 10,
-                                          color:
-                                              AppColors.textSecondary)),
+                                          color: AppColors
+                                              .textSecondary)),
                                 ],
                               ),
                       ),
@@ -501,8 +493,6 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
                   ],
                 ),
                 const SizedBox(height: 20),
-
-                // Save Button
                 SizedBox(
                   height: 50,
                   child: ElevatedButton(
@@ -528,16 +518,6 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
     _gsmController.dispose();
     super.dispose();
   }
-}
-
-// Need this helper to get app directory
-Future<Directory> getApplicationDocumentsDirectory() async {
-  final directory = Directory(
-      '${Directory.current.path}/app_documents');
-  if (!await directory.exists()) {
-    await directory.create(recursive: true);
-  }
-  return directory;
 }
 
 // ========== GSM CALCULATOR ==========
@@ -569,91 +549,95 @@ class _GsmCalculatorSheetState extends State<_GsmCalculatorSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
     return Container(
       padding: EdgeInsets.only(
-    left: 20,
-    right: 20,
-    top: 20,
-    bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        left: 20,
+        right: 20,
+        top: 20,
+        bottom: bottomPadding + 20,
+      ),
       decoration: const BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.cardBorder,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          const Text('🧵 GSM CALCULATOR',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          const Text('Cut a swatch, weigh it, find exact GSM.',
-              style: TextStyle(color: AppColors.textSecondary)),
-          const SizedBox(height: 20),
-          TextFormField(
-            controller: _weightController,
-            decoration: const InputDecoration(
-                labelText: 'Weight of swatch (grams)',
-                border: OutlineInputBorder()),
-            keyboardType: TextInputType.number,
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: TextFormField(
-                  controller: _widthController,
-                  decoration: const InputDecoration(
-                      labelText: 'Width (cm)',
-                      border: OutlineInputBorder()),
-                  keyboardType: TextInputType.number,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.cardBorder,
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextFormField(
-                  controller: _heightController,
-                  decoration: const InputDecoration(
-                      labelText: 'Height (cm)',
-                      border: OutlineInputBorder()),
-                  keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 20),
+            const Text('GSM CALCULATOR',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            const Text('Cut a swatch, weigh it, find exact GSM.',
+                style: TextStyle(color: AppColors.textSecondary)),
+            const SizedBox(height: 20),
+            TextFormField(
+              controller: _weightController,
+              decoration: const InputDecoration(
+                  labelText: 'Weight of swatch (grams)',
+                  border: OutlineInputBorder()),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _widthController,
+                    decoration: const InputDecoration(
+                        labelText: 'Width (cm)',
+                        border: OutlineInputBorder()),
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    controller: _heightController,
+                    decoration: const InputDecoration(
+                        labelText: 'Height (cm)',
+                        border: OutlineInputBorder()),
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (_calculatedGsm != null)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'GSM: ${_calculatedGsm!.toInt()}',
+                  style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.success),
+                  textAlign: TextAlign.center,
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          if (_calculatedGsm != null)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.success.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                'GSM: ${_calculatedGsm!.toInt()}',
-                style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.success),
-                textAlign: TextAlign.center,
-              ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _calculate,
+              child: const Text('CALCULATE GSM'),
             ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _calculate,
-            child: const Text('CALCULATE GSM'),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
