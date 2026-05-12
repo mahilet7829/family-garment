@@ -341,8 +341,13 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
         color: AppColors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
+     child: Padding(
+  padding: EdgeInsets.only(
+    left: 20,
+    right: 20,
+    top: 20,
+    bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+  ),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -565,7 +570,11 @@ class _GsmCalculatorSheetState extends State<_GsmCalculatorSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.only(
+    left: 20,
+    right: 20,
+    top: 20,
+    bottom: MediaQuery.of(context).viewInsets.bottom + 20,
       decoration: const BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),

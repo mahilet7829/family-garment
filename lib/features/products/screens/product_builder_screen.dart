@@ -354,8 +354,13 @@ class _AddProductSheetState extends State<AddProductSheet> {
         color: AppColors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
+     child: Padding(
+  padding: EdgeInsets.only(
+    left: 20,
+    right: 20,
+    top: 20,
+    bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+  ),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(

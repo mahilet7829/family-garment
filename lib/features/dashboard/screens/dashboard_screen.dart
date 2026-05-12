@@ -105,8 +105,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         foregroundColor: AppColors.white,
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+     body: SingleChildScrollView(
+  padding: EdgeInsets.only(
+    left: 20,
+    right: 20,
+    top: 20,
+    bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+  ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
