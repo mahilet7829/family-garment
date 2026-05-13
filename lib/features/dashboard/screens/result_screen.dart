@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/currency_formatter.dart';
-import '../../../models/material_model.dart';
-import '../../../models/product_model.dart';
-import '../../../models/size_variant_model.dart';
-import '../../../services/simulation_service.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/currency_formatter.dart';
+import '../../../../models/material_model.dart';
+import '../../../../models/product_model.dart';
+import '../../../../models/size_variant_model.dart';
+import '../../../../services/simulation_service.dart';
 
 class ResultScreen extends StatefulWidget {
   final MaterialModel material;
@@ -36,6 +36,9 @@ class _ResultScreenState extends State<ResultScreen>
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
 
+  // To show material names in the check
+  Map<int, String> _materialNames = {};
+
   @override
   void initState() {
     super.initState();
@@ -60,8 +63,16 @@ class _ResultScreenState extends State<ResultScreen>
         productId: widget.product.id!,
         sizeVariantId: widget.sizeVariant.id!,
       );
+
+      // Load material names for display
+      final names = <int, String>{};
+      for (var id in result.materialsNeeded.keys) {
+        names[id] = 'Material #$id';
+      }
+
       setState(() {
         _result = result;
+        _materialNames = names;
         _isLoading = false;
       });
       _animationController.forward();
@@ -91,7 +102,13 @@ class _ResultScreenState extends State<ResultScreen>
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text('Error: $_error'))
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Text('Error: $_error',
+                        style: const TextStyle(color: AppColors.error)),
+                  ),
+                )
               : _buildResult(),
     );
   }
@@ -119,16 +136,15 @@ class _ResultScreenState extends State<ResultScreen>
               _buildMoneyCard(result),
               const SizedBox(height: 20),
 
-              // Production Button
+              // Go to Record Button
               SizedBox(
                 height: 56,
                 child: ElevatedButton.icon(
                   onPressed: () {
                     Navigator.pop(context);
-                    // Switch to Record tab (implement via callback if needed)
                   },
-                  icon: const Icon(Icons.play_arrow, size: 24),
-                  label: const Text('START PRODUCTION RUN',
+                  icon: const Icon(Icons.check_circle, size: 24),
+                  label: const Text('GO TO RECORD PRODUCTION',
                       style: TextStyle(fontSize: 16, letterSpacing: 1)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.success,
@@ -136,6 +152,7 @@ class _ResultScreenState extends State<ResultScreen>
                   ),
                 ),
               ),
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -229,33 +246,56 @@ class _ResultScreenState extends State<ResultScreen>
                 style: TextStyle(
                     fontWeight: FontWeight.w600, letterSpacing: 1)),
             const SizedBox(height: 12),
-            ...result.materialSufficiency.entries.map((entry) {
-              final needed = result.materialsNeeded[entry.key] ?? 0;
-              final isEnough = entry.value;
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Row(
-                  children: [
-                    Icon(
-                      isEnough ? Icons.check_circle : Icons.cancel,
-                      color: isEnough ? AppColors.success : AppColors.error,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Material #${entry.key}: ${needed.toStringAsFixed(2)} needed',
-                        style: TextStyle(
-                          color: isEnough
-                              ? AppColors.textPrimary
-                              : AppColors.error,
+            if (result.materialSufficiency.isEmpty)
+              const Text('No recipe items found for this product.',
+                  style: TextStyle(color: AppColors.textSecondary))
+            else
+              ...result.materialSufficiency.entries.map((entry) {
+                final materialId = entry.key;
+                final needed = result.materialsNeeded[materialId] ?? 0;
+                final isEnough = entry.value;
+                final name = _materialNames[materialId] ?? 'Material #$materialId';
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isEnough ? Icons.check_circle : Icons.cancel,
+                        color:
+                            isEnough ? AppColors.success : AppColors.error,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                                color: isEnough
+                                    ? AppColors.textPrimary
+                                    : AppColors.error,
+                              ),
+                            ),
+                            Text(
+                              '${needed.toStringAsFixed(2)} needed',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isEnough
+                                    ? AppColors.textSecondary
+                                    : AppColors.error,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              );
-            }),
+                    ],
+                  ),
+                );
+              }),
           ],
         ),
       ),
@@ -263,6 +303,12 @@ class _ResultScreenState extends State<ResultScreen>
   }
 
   Widget _buildMoneyCard(SimulationResult result) {
+    final revenuePerPiece = widget.product.sellingPrice;
+    final costPerPiece = result.maxPieces > 0
+        ? result.totalCost / result.maxPieces
+        : 0.0;
+    final profitPerPiece = revenuePerPiece - costPerPiece;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -273,14 +319,75 @@ class _ResultScreenState extends State<ResultScreen>
                 style: TextStyle(
                     fontWeight: FontWeight.w600, letterSpacing: 1)),
             const SizedBox(height: 16),
-            _moneyRow('Revenue', result.totalRevenue, AppColors.success),
+
+            // Per Piece Breakdown
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.cardBorder),
+              ),
+              child: Column(
+                children: [
+                  const Text('PER PIECE',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary,
+                          letterSpacing: 1)),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Selling Price'),
+                      Text(CurrencyFormatter.format(revenuePerPiece),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 16)),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Material Cost'),
+                      Text(CurrencyFormatter.format(costPerPiece),
+                          style: const TextStyle(
+                              color: AppColors.error, fontSize: 16)),
+                    ],
+                  ),
+                  const Divider(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('PROFIT PER PIECE',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 14)),
+                      Text(CurrencyFormatter.format(profitPerPiece),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.success,
+                              fontSize: 18)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Total for Batch
+            const Text('TOTAL (${result.maxPieces} pieces)',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                    letterSpacing: 1)),
+            const SizedBox(height: 8),
+            _moneyRow('Total Revenue', result.totalRevenue, AppColors.success),
             _moneyRow('Total Cost', result.totalCost, AppColors.error),
             const Divider(height: 24),
             _moneyRow(
                 'NET PROFIT', result.netProfit, AppColors.navy, isBold: true),
-            const SizedBox(height: 8),
-            _moneyRow('Per Piece', result.costPerPiece,
-                AppColors.textSecondary),
           ],
         ),
       ),
