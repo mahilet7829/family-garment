@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import '../../../../core/theme/app_theme.dart';
-import '../../../../core/utils/currency_formatter.dart';
-import '../../../../models/product_model.dart';
-import '../../../../models/material_model.dart';
-import '../../../../models/size_variant_model.dart';
-import '../../../../models/recipe_item_model.dart';
-import '../../../../services/product_service.dart';
-import '../../../../services/material_service.dart';
+import 'package:family_garment/core/theme/app_theme.dart';
+import 'package:family_garment/core/utils/currency_formatter.dart';
+import 'package:family_garment/models/product_model.dart';
+import 'package:family_garment/models/material_model.dart';
+import 'package:family_garment/models/size_variant_model.dart';
+import 'package:family_garment/models/recipe_item_model.dart';
+import 'package:family_garment/services/product_service.dart';
+import 'package:family_garment/services/material_service.dart';
 
 class ProductBuilderScreen extends StatefulWidget {
   const ProductBuilderScreen({super.key});
@@ -35,13 +35,15 @@ class _ProductBuilderScreenState extends State<ProductBuilderScreen> {
     try {
       final products = await _productService.getAllProducts();
       final materials = await _materialService.getAll();
-      setState(() {
-        _products = products;
-        _allMaterials = materials;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _products = products;
+          _allMaterials = materials;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -54,7 +56,7 @@ class _ProductBuilderScreenState extends State<ProductBuilderScreen> {
         onSaved: _loadData,
         allMaterials: _allMaterials,
       ),
-    );
+    ).then((_) => _loadData());
   }
 
   void _showEditDialog(ProductModel product) {
@@ -67,23 +69,27 @@ class _ProductBuilderScreenState extends State<ProductBuilderScreen> {
         existing: product,
         allMaterials: _allMaterials,
       ),
-    );
+    ).then((_) => _loadData());
   }
 
   Future<void> _deleteProduct(ProductModel product) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Delete Product'),
-        content: Text('Delete ${product.name}?'),
+        content: Text('Delete "${product.name}"?\n\nThis cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Cancel'),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete', style: TextStyle(color: AppColors.error)),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: AppColors.white),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -102,75 +108,154 @@ class _ProductBuilderScreenState extends State<ProductBuilderScreen> {
         title: const Text('PRODUCTS'),
         backgroundColor: AppColors.navy,
         foregroundColor: AppColors.white,
+        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
+            icon: const Icon(Icons.add_circle_outline, size: 28),
             onPressed: _showAddDialog,
+            tooltip: 'Add Product',
           ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _products.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.checkroom,
-                          size: 80,
-                          color: AppColors.textSecondary.withOpacity(0.5)),
-                      const SizedBox(height: 16),
-                      const Text('No products yet.'),
-                      const SizedBox(height: 16),
-                      ElevatedButton.icon(
-                        onPressed: _showAddDialog,
-                        icon: const Icon(Icons.add),
-                        label: const Text('CREATE FIRST PRODUCT'),
-                      ),
-                    ],
-                  ),
-                )
+              ? _buildEmptyState()
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: _products.length,
-                  itemBuilder: (_, i) {
-                    final product = _products[i];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          radius: 28,
-                          backgroundColor: AppColors.navy.withOpacity(0.1),
-                          backgroundImage: product.imagePaths.isNotEmpty &&
-                                  File(product.imagePaths.first).existsSync()
-                              ? FileImage(File(product.imagePaths.first))
-                              : null,
-                          child: product.imagePaths.isEmpty ||
-                                  !File(product.imagePaths.first).existsSync()
-                              ? const Icon(Icons.checkroom, color: AppColors.navy)
-                              : null,
-                        ),
-                        title: Text(product.name,
-                            style: const TextStyle(fontWeight: FontWeight.w600)),
-                        subtitle: Text(
-                            '${product.category}  •  Br ${product.sellingPrice.toStringAsFixed(2)}/pc'),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.edit, size: 20, color: AppColors.navy),
-                              onPressed: () => _showEditDialog(product),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete, size: 20, color: AppColors.error),
-                              onPressed: () => _deleteProduct(product),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+                  itemBuilder: (_, i) => _productCard(_products[i]),
                 ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppColors.navy.withOpacity(0.05),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.checkroom_outlined,
+                size: 56, color: AppColors.navy.withOpacity(0.4)),
+          ),
+          const SizedBox(height: 20),
+          const Text('No products yet',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary)),
+          const SizedBox(height: 6),
+          const Text('Create your first garment product',
+              style: TextStyle(color: AppColors.textSecondary)),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            onPressed: _showAddDialog,
+            icon: const Icon(Icons.add),
+            label: const Text('CREATE PRODUCT'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.navy,
+              foregroundColor: AppColors.white,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _productCard(ProductModel product) {
+    return Card(
+      elevation: 1,
+      shadowColor: AppColors.navy.withOpacity(0.05),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      margin: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => _showEditDialog(product),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              // Product Image
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: AppColors.navy.withOpacity(0.05),
+                  image: product.imagePaths.isNotEmpty &&
+                          File(product.imagePaths.first).existsSync()
+                      ? DecorationImage(
+                          image: FileImage(File(product.imagePaths.first)),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child: product.imagePaths.isEmpty ||
+                        !File(product.imagePaths.first).existsSync()
+                    ? Icon(Icons.checkroom,
+                        color: AppColors.navy.withOpacity(0.5), size: 24)
+                    : null,
+              ),
+              const SizedBox(width: 14),
+              // Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(product.name,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 15)),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.navy.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(product.category,
+                              style: const TextStyle(
+                                  fontSize: 11, color: AppColors.navy)),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          CurrencyFormatter.format(product.sellingPrice),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: AppColors.success),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // Actions
+              IconButton(
+                icon: const Icon(Icons.edit_outlined,
+                    size: 20, color: AppColors.navy),
+                onPressed: () => _showEditDialog(product),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline,
+                    size: 20, color: AppColors.error),
+                onPressed: () => _deleteProduct(product),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -198,11 +283,9 @@ class _AddProductSheetState extends State<AddProductSheet> {
   final _priceController = TextEditingController();
   String _category = "Men's Wear";
   File? _image;
+  bool _isSaving = false;
 
-  // Sizes
   final List<TextEditingController> _sizeControllers = [];
-
-  // Recipe items (BOM)
   final List<_RecipeItemEntry> _recipeItems = [];
 
   bool get _isEditing => widget.existing != null;
@@ -238,7 +321,8 @@ class _AddProductSheetState extends State<AddProductSheet> {
 
   Future<void> _loadExistingRecipe() async {
     if (_isEditing) {
-      final items = await ProductService().getRecipeItems(widget.existing!.id!);
+      final items =
+          await ProductService().getRecipeItems(widget.existing!.id!);
       for (var item in items) {
         final material = widget.allMaterials.firstWhere(
           (m) => m.id == item.materialId,
@@ -252,8 +336,7 @@ class _AddProductSheetState extends State<AddProductSheet> {
         );
         _recipeItems.add(_RecipeItemEntry(
           material: material,
-          quantityController: TextEditingController(
-              text: '1'),
+          quantityController: TextEditingController(text: '1'),
         ));
       }
       setState(() {});
@@ -261,16 +344,16 @@ class _AddProductSheetState extends State<AddProductSheet> {
   }
 
   void _addSize() {
-    setState(() {
-      _sizeControllers.add(TextEditingController());
-    });
+    setState(() => _sizeControllers.add(TextEditingController()));
   }
 
   void _removeSize(int index) {
-    setState(() {
-      _sizeControllers[index].dispose();
-      _sizeControllers.removeAt(index);
-    });
+    if (_sizeControllers.length > 1 || !_isEditing) {
+      setState(() {
+        _sizeControllers[index].dispose();
+        _sizeControllers.removeAt(index);
+      });
+    }
   }
 
   void _addRecipeItem() {
@@ -299,20 +382,14 @@ class _AddProductSheetState extends State<AddProductSheet> {
         maxWidth: 800,
         maxHeight: 800,
       );
-      if (picked != null) {
-        setState(() {
-          _image = File(picked.path);
-        });
+      if (picked != null && mounted) {
+        setState(() => _image = File(picked.path));
       }
-    } catch (e) {
-      // User cancelled or permission denied
-    }
+    } catch (_) {}
   }
 
   void _removeImage() {
-    setState(() {
-      _image = null;
-    });
+    if (mounted) setState(() => _image = null);
   }
 
   Map<int, double> _buildMaterialUsage() {
@@ -328,25 +405,22 @@ class _AddProductSheetState extends State<AddProductSheet> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_isSaving) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Saving...'),
-        duration: Duration(seconds: 1),
-      ),
-    );
+    setState(() => _isSaving = true);
 
     try {
       final productService = ProductService();
 
-      // Save image
       List<String> imagePaths = [];
       if (_image != null) {
-        final appDir = Directory('${Directory.current.path}/app_documents/images');
+        final appDir =
+            Directory('${Directory.current.path}/app_documents/images');
         if (!await appDir.exists()) {
           await appDir.create(recursive: true);
         }
-        final fileName = 'product_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final fileName =
+            'product_${DateTime.now().millisecondsSinceEpoch}.jpg';
         final savedImage = await _image!.copy('${appDir.path}/$fileName');
         imagePaths.add(savedImage.path);
       } else if (_isEditing && widget.existing!.imagePaths.isNotEmpty) {
@@ -363,7 +437,6 @@ class _AddProductSheetState extends State<AddProductSheet> {
         );
         await productService.updateProduct(product);
         productId = product.id!;
-        // Delete old sizes and recipe
         final oldVariants = await productService.getSizeVariants(productId);
         for (var v in oldVariants) {
           await productService.deleteSizeVariant(v.id!);
@@ -379,7 +452,6 @@ class _AddProductSheetState extends State<AddProductSheet> {
         productId = await productService.createProduct(product);
       }
 
-      // Save recipe items (BOM)
       for (var i = 0; i < _recipeItems.length; i++) {
         final item = _recipeItems[i];
         if (item.material != null) {
@@ -398,7 +470,6 @@ class _AddProductSheetState extends State<AddProductSheet> {
         }
       }
 
-      // Save sizes
       final materialUsage = _buildMaterialUsage();
       for (var controller in _sizeControllers) {
         final name = controller.text.trim();
@@ -418,8 +489,13 @@ class _AddProductSheetState extends State<AddProductSheet> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_isEditing ? '✅ Product updated!' : '✅ Product created!'),
+            content: Text(_isEditing
+                ? '✅ Product updated!'
+                : '✅ Product created!'),
             backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
@@ -429,10 +505,12 @@ class _AddProductSheetState extends State<AddProductSheet> {
           SnackBar(
             content: Text('Error: $e'),
             backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -447,18 +525,13 @@ class _AddProductSheetState extends State<AddProductSheet> {
       ),
       child: Padding(
         padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 20,
-          bottom: bottomPadding + 20,
-        ),
+            left: 20, right: 20, top: 16, bottom: bottomPadding + 16),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Handle
                 Center(
                   child: Container(
                     width: 40,
@@ -469,55 +542,53 @@ class _AddProductSheetState extends State<AddProductSheet> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
                 Text(_isEditing ? 'EDIT PRODUCT' : 'CREATE PRODUCT',
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.navy)),
                 const SizedBox(height: 20),
-
-                // Name
+                _buildLabel('Product Name'),
+                const SizedBox(height: 6),
                 TextFormField(
                   controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Product Name',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  decoration: _inputDecoration('e.g. Classic Boxer'),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Required' : null,
                 ),
-                const SizedBox(height: 12),
-
-                // Category
+                const SizedBox(height: 16),
+                _buildLabel('Category'),
+                const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
                   value: _category,
-                  decoration: const InputDecoration(
-                    labelText: 'Category',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: ["Men's Wear", "Women's Wear", "Kids Wear", "Infants"]
-                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                      .toList(),
-                  onChanged: (v) => setState(() => _category = v!),
+                  decoration: _inputDecoration(null),
+                  items: [
+                    "Men's Wear",
+                    "Women's Wear",
+                    "Kids Wear",
+                    "Infants"
+                  ].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                  onChanged: (v) {
+                    if (v != null) setState(() => _category = v);
+                  },
                 ),
-                const SizedBox(height: 12),
-
-                // Price
+                const SizedBox(height: 16),
+                _buildLabel('Selling Price (Br)'),
+                const SizedBox(height: 6),
                 TextFormField(
                   controller: _priceController,
-                  decoration: const InputDecoration(
-                    labelText: 'Selling Price (Br)',
-                    border: OutlineInputBorder(),
-                  ),
+                  decoration: _inputDecoration('0.00'),
                   keyboardType: TextInputType.number,
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) return 'Required';
-                    if (double.tryParse(v.trim()) == null) return 'Enter a valid number';
+                    if (double.tryParse(v.trim()) == null)
+                      return 'Enter a valid number';
                     return null;
                   },
                 ),
                 const SizedBox(height: 20),
-
-                // Image
-                const Text('Product Image (optional)',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
+                _buildSectionTitle('Product Image', optional: true),
                 const SizedBox(height: 8),
                 GestureDetector(
                   onTap: _pickImage,
@@ -526,22 +597,26 @@ class _AddProductSheetState extends State<AddProductSheet> {
                     height: 180,
                     decoration: BoxDecoration(
                       color: AppColors.background,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.cardBorder),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                          color: AppColors.cardBorder, width: 1.5),
                     ),
                     child: _image != null
                         ? ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.file(_image!, fit: BoxFit.cover),
+                            borderRadius: BorderRadius.circular(14),
+                            child:
+                                Image.file(_image!, fit: BoxFit.cover),
                           )
                         : const Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.add_a_photo,
-                                  color: AppColors.textSecondary, size: 40),
+                              Icon(Icons.add_a_photo_outlined,
+                                  color: AppColors.textSecondary,
+                                  size: 36),
                               SizedBox(height: 8),
                               Text('Tap to Add Photo',
-                                  style: TextStyle(color: AppColors.textSecondary)),
+                                  style: TextStyle(
+                                      color: AppColors.textSecondary)),
                             ],
                           ),
                   ),
@@ -550,173 +625,88 @@ class _AddProductSheetState extends State<AddProductSheet> {
                   const SizedBox(height: 8),
                   TextButton.icon(
                     onPressed: _removeImage,
-                    icon: const Icon(Icons.delete, color: AppColors.error, size: 18),
+                    icon: const Icon(Icons.delete_outline,
+                        color: AppColors.error, size: 16),
                     label: const Text('Remove Image',
                         style: TextStyle(color: AppColors.error)),
                   ),
                 ],
                 const SizedBox(height: 20),
-
-                // RECIPE (Bill of Materials)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('RECIPE (Materials Needed)',
-                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-                    TextButton.icon(
+                _buildSectionTitle('RECIPE (Materials Needed)',
+                    action: TextButton.icon(
                       onPressed: _addRecipeItem,
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Add Material'),
-                    ),
-                  ],
-                ),
+                      icon: const Icon(Icons.add_circle_outline, size: 18),
+                      label: const Text('Add'),
+                    )),
                 const SizedBox(height: 8),
                 if (_recipeItems.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Text(
-                      'Add materials from your inventory to build the recipe.',
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.info_outline,
+                            color: AppColors.textSecondary, size: 18),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Add materials from your inventory to build the recipe.',
+                            style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ..._recipeItems.asMap().entries.map((entry) {
                   final index = entry.key;
                   final item = entry.value;
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: DropdownButtonFormField<int>(
-                                  value: item.material?.id,
-                                  decoration: const InputDecoration(
-                                    border: OutlineInputBorder(),
-                                    labelText: 'Material',
-                                    isDense: true,
-                                  ),
-                                  items: widget.allMaterials.map((m) {
-                                    return DropdownMenuItem(
-                                      value: m.id,
-                                      child: Text(
-                                        '${m.name}${m.isFabric && m.gsm != null ? " (${m.gsm!.toInt()} GSM)" : ""}',
-                                        style: const TextStyle(fontSize: 13),
-                                      ),
-                                    );
-                                  }).toList(),
-                                  onChanged: (id) {
-                                    setState(() {
-                                      item.material = widget.allMaterials
-                                          .firstWhere((m) => m.id == id);
-                                    });
-                                  },
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.close,
-                                    color: AppColors.error, size: 20),
-                                onPressed: () => _removeRecipeItem(index),
-                              ),
-                            ],
-                          ),
-                          if (item.material != null) ...[
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                const Expanded(
-                                  child: Text(
-                                    'Qty per piece:',
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: AppColors.textSecondary),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                SizedBox(
-                                  width: 100,
-                                  child: TextFormField(
-                                    controller: item.quantityController,
-                                    decoration: InputDecoration(
-                                      border: const OutlineInputBorder(),
-                                      labelText: item.material!.unit,
-                                      isDense: true,
-                                    ),
-                                    keyboardType: TextInputType.number,
-                                    style: const TextStyle(fontSize: 13),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  );
+                  return _buildRecipeCard(index, item);
                 }),
                 const SizedBox(height: 20),
-
-                // SIZES
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('SIZES',
-                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-                    TextButton.icon(
+                _buildSectionTitle('SIZES',
+                    action: TextButton.icon(
                       onPressed: _addSize,
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Add Size'),
-                    ),
-                  ],
-                ),
+                      icon: const Icon(Icons.add_circle_outline, size: 18),
+                      label: const Text('Add'),
+                    )),
                 const SizedBox(height: 8),
                 ..._sizeControllers.asMap().entries.map((entry) {
                   final index = entry.key;
                   final controller = entry.value;
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: controller,
-                              decoration: const InputDecoration(
-                                border: OutlineInputBorder(),
-                                labelText: 'Size Name',
-                                hintText: 'e.g. Small, Medium, Large',
-                                isDense: true,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.close,
-                                color: AppColors.error, size: 20),
-                            onPressed: () => _removeSize(index),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
+                  return _buildSizeCard(index, controller);
                 }),
-                const SizedBox(height: 20),
-
-                // Save Button
+                const SizedBox(height: 24),
                 SizedBox(
-                  height: 50,
+                  height: 52,
                   child: ElevatedButton(
-                    onPressed: _save,
+                    onPressed: _isSaving ? null : _save,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.success,
                       foregroundColor: AppColors.white,
+                      disabledBackgroundColor:
+                          AppColors.success.withOpacity(0.5),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
                     ),
-                    child: Text(
-                      _isEditing ? 'UPDATE PRODUCT' : 'CREATE PRODUCT',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.white),
+                          )
+                        : Text(
+                            _isEditing ? 'UPDATE PRODUCT' : 'CREATE PRODUCT',
+                            style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -725,6 +715,184 @@ class _AddProductSheetState extends State<AddProductSheet> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildRecipeCard(int index, _RecipeItemEntry item) {
+    return Card(
+      elevation: 0.5,
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    value: item.material?.id,
+                    decoration: _inputDecoration('Select material'),
+                    isDense: true,
+                    items: widget.allMaterials.map((m) {
+                      return DropdownMenuItem(
+                        value: m.id,
+                        child: Text(
+                          '${m.name}${m.isFabric && m.gsm != null ? " (${m.gsm!.toInt()} GSM)" : ""}',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (id) {
+                      if (id != null) {
+                        setState(() {
+                          item.material = widget.allMaterials
+                              .firstWhere((m) => m.id == id);
+                        });
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () => _removeRecipeItem(index),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.close,
+                        color: AppColors.error, size: 18),
+                  ),
+                ),
+              ],
+            ),
+            if (item.material != null) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  const Text('Qty per piece:',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary)),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 100,
+                    child: TextFormField(
+                      controller: item.quantityController,
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        labelText: item.material!.unit,
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 10),
+                      ),
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSizeCard(int index, TextEditingController controller) {
+    return Card(
+      elevation: 0.5,
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: controller,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  labelText: 'Size Name',
+                  hintText: 'Small, Medium, Large, XL',
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 10),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            if (_sizeControllers.length > 1 || _isEditing)
+              GestureDetector(
+                onTap: () => _removeSize(index),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.close,
+                      color: AppColors.error, size: 18),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLabel(String text) {
+    return Text(text,
+        style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary));
+  }
+
+  Widget _buildSectionTitle(String text,
+      {bool optional = false, Widget? action}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            Text(text,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    color: AppColors.navy)),
+            if (optional)
+              const Text(' (optional)',
+                  style: TextStyle(
+                      fontSize: 12, color: AppColors.textSecondary)),
+          ],
+        ),
+        if (action != null) action,
+      ],
+    );
+  }
+
+  InputDecoration _inputDecoration(String? hint) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle:
+          TextStyle(color: AppColors.textSecondary.withOpacity(0.5)),
+      border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.cardBorder)),
+      enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.cardBorder)),
+      focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.navy, width: 2)),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );
   }
 

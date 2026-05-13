@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import '../../../../core/theme/app_theme.dart';
-import '../../../../core/utils/gsm_calculator.dart';
-import '../../../../models/material_model.dart';
-import '../../../../services/material_service.dart';
+import 'package:family_garment/core/theme/app_theme.dart';
+import 'package:family_garment/core/utils/gsm_calculator.dart';
+import 'package:family_garment/models/material_model.dart';
+import 'package:family_garment/services/material_service.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -27,11 +27,17 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   Future<void> _loadMaterials() async {
     setState(() => _isLoading = true);
-    final materials = await _service.getAll(category: _filterCategory);
-    setState(() {
-      _materials = materials;
-      _isLoading = false;
-    });
+    try {
+      final materials = await _service.getAll(category: _filterCategory);
+      if (mounted) {
+        setState(() {
+          _materials = materials;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   void _showAddMaterialDialog() {
@@ -39,15 +45,27 @@ class _InventoryScreenState extends State<InventoryScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _MaterialFormSheet(onSaved: _loadMaterials),
-    );
+      builder: (_) => MaterialFormSheet(onSaved: _loadMaterials),
+    ).then((_) => _loadMaterials());
+  }
+
+  void _showEditMaterialDialog(MaterialModel material) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => MaterialFormSheet(
+        existing: material,
+        onSaved: _loadMaterials,
+      ),
+    ).then((_) => _loadMaterials());
   }
 
   void _showGsmCalculator() {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) => _GsmCalculatorSheet(),
+      builder: (_) => const GsmCalculatorSheet(),
     );
   }
 
@@ -58,9 +76,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
         builder: (_) => MaterialDetailScreen(
           material: material,
           onUpdated: _loadMaterials,
+          onEdit: (m) => _showEditMaterialDialog(m),
         ),
       ),
-    );
+    ).then((_) => _loadMaterials());
   }
 
   @override
@@ -71,14 +90,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
         title: const Text('INVENTORY'),
         backgroundColor: AppColors.navy,
         foregroundColor: AppColors.white,
+        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.calculate),
+            icon: const Icon(Icons.calculate_outlined),
             onPressed: _showGsmCalculator,
             tooltip: 'GSM Calculator',
           ),
           IconButton(
-            icon: const Icon(Icons.add),
+            icon: const Icon(Icons.add_circle_outline, size: 28),
             onPressed: _showAddMaterialDialog,
             tooltip: 'Add Material',
           ),
@@ -88,14 +108,17 @@ class _InventoryScreenState extends State<InventoryScreen> {
         children: [
           // Filter chips
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
                   _filterChip('All', null),
+                  const SizedBox(width: 8),
                   _filterChip('Fabric', 'Fabric'),
+                  const SizedBox(width: 8),
                   _filterChip('Trim', 'Trim'),
+                  const SizedBox(width: 8),
                   _filterChip('Packaging', 'Packaging'),
                 ],
               ),
@@ -110,23 +133,43 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.inventory_2,
+                            Icon(Icons.inventory_2_outlined,
                                 size: 80,
                                 color: AppColors.textSecondary
-                                    .withOpacity(0.5)),
+                                    .withOpacity(0.4)),
                             const SizedBox(height: 16),
-                            const Text('No materials yet.'),
-                            const SizedBox(height: 16),
-                            ElevatedButton.icon(
-                              onPressed: _showAddMaterialDialog,
-                              icon: const Icon(Icons.add),
-                              label: const Text('ADD FIRST MATERIAL'),
-                            ),
+                            Text('No materials found',
+                                style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.textSecondary
+                                        .withOpacity(0.7))),
+                            const SizedBox(height: 8),
+                            Text(
+                                _filterCategory != null
+                                    ? 'Try a different filter'
+                                    : 'Tap + to add your first material',
+                                style: const TextStyle(
+                                    color: AppColors.textSecondary)),
+                            const SizedBox(height: 20),
+                            if (_filterCategory == null)
+                              ElevatedButton.icon(
+                                onPressed: _showAddMaterialDialog,
+                                icon: const Icon(Icons.add),
+                                label: const Text('ADD MATERIAL'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.navy,
+                                  foregroundColor: AppColors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 24, vertical: 14),
+                                ),
+                              ),
                           ],
                         ),
                       )
                     : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
                         itemCount: _materials.length,
                         itemBuilder: (_, i) =>
                             _materialListTile(_materials[i]),
@@ -139,69 +182,116 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   Widget _filterChip(String label, String? category) {
     final isSelected = _filterCategory == category;
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(
-        label: Text(label),
-        selected: isSelected,
-        onSelected: (selected) {
-          setState(() => _filterCategory = selected ? category : null);
-          _loadMaterials();
-        },
-        selectedColor: AppColors.navy,
-        labelStyle: TextStyle(
-            color: isSelected ? AppColors.white : AppColors.navy),
-      ),
+    return FilterChip(
+      label: Text(label,
+          style: TextStyle(
+              color: isSelected ? AppColors.white : AppColors.navy,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal)),
+      selected: isSelected,
+      onSelected: (selected) {
+        setState(() => _filterCategory = selected ? category : null);
+        _loadMaterials();
+      },
+      backgroundColor: AppColors.white,
+      selectedColor: AppColors.navy,
+      checkmarkColor: AppColors.white,
+      side: BorderSide(
+          color: isSelected ? AppColors.navy : AppColors.cardBorder),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     );
   }
 
   Widget _materialListTile(MaterialModel material) {
     final stockColor = material.currentStock <= 0
         ? AppColors.error
-        : material.currentStock < 10
+        : material.currentStock < 5
             ? AppColors.warning
             : AppColors.success;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: ListTile(
-        leading: CircleAvatar(
-          radius: 24,
-          backgroundColor: stockColor.withOpacity(0.1),
-          backgroundImage: material.imagePath != null &&
-                  File(material.imagePath!).existsSync()
-              ? FileImage(File(material.imagePath!))
-              : null,
-          child: material.imagePath == null ||
-                  !File(material.imagePath!).existsSync()
-              ? Icon(Icons.inventory_2, color: stockColor, size: 24)
-              : null,
-        ),
-        title: Text(material.name,
-            style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(
-          material.stockDisplay,
-          style: TextStyle(fontSize: 13, color: stockColor),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (material.isFabric && material.gsm != null)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.navy.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text('${material.gsm!.toInt()} GSM',
-                    style: const TextStyle(fontSize: 11)),
-              ),
-            const SizedBox(width: 4),
-            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-          ],
-        ),
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 1,
+      shadowColor: AppColors.navy.withOpacity(0.05),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
         onTap: () => _openMaterialDetail(material),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              // Image / Icon
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: stockColor.withOpacity(0.1),
+                  image: material.imagePath != null &&
+                          File(material.imagePath!).existsSync()
+                      ? DecorationImage(
+                          image: FileImage(File(material.imagePath!)),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child: material.imagePath == null ||
+                        !File(material.imagePath!).existsSync()
+                    ? Icon(Icons.inventory_2, color: stockColor, size: 24)
+                    : null,
+              ),
+              const SizedBox(width: 14),
+              // Name & Stock
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(material.name,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 15)),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: stockColor,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          material.stockDisplay,
+                          style: TextStyle(
+                              fontSize: 13, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // GSM Badge
+              if (material.isFabric && material.gsm != null)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppColors.navy.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text('${material.gsm!.toInt()} GSM',
+                      style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.navy)),
+                ),
+              const SizedBox(width: 4),
+              Icon(Icons.chevron_right,
+                  color: AppColors.textSecondary.withOpacity(0.5), size: 22),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -211,11 +301,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
 class MaterialDetailScreen extends StatefulWidget {
   final MaterialModel material;
   final VoidCallback onUpdated;
+  final Function(MaterialModel) onEdit;
 
   const MaterialDetailScreen({
     super.key,
     required this.material,
     required this.onUpdated,
+    required this.onEdit,
   });
 
   @override
@@ -234,7 +326,7 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
 
   Future<void> _refreshMaterial() async {
     final updated = await _service.getById(_material.id!);
-    if (updated != null) {
+    if (updated != null && mounted) {
       setState(() => _material = updated);
       widget.onUpdated();
     }
@@ -245,29 +337,31 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _MaterialFormSheet(
+      builder: (_) => MaterialFormSheet(
         existing: _material,
         onSaved: _refreshMaterial,
       ),
-    );
+    ).then((_) => _refreshMaterial());
   }
 
   Future<void> _deleteMaterial() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Delete Material'),
-        content:
-            Text('Delete "${_material.name}"?\n\nThis cannot be undone.'),
+        content: Text('Delete "${_material.name}"?\n\nThis cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Cancel'),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete',
-                style: TextStyle(color: AppColors.error)),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: AppColors.white),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -283,7 +377,7 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
   Widget build(BuildContext context) {
     final stockColor = _material.currentStock <= 0
         ? AppColors.error
-        : _material.currentStock < 10
+        : _material.currentStock < 5
             ? AppColors.warning
             : AppColors.success;
 
@@ -293,14 +387,15 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
         title: Text(_material.name),
         backgroundColor: AppColors.navy,
         foregroundColor: AppColors.white,
+        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit, color: AppColors.white),
+            icon: const Icon(Icons.edit_outlined),
             onPressed: _showEditDialog,
             tooltip: 'Edit',
           ),
           IconButton(
-            icon: const Icon(Icons.delete, color: AppColors.error),
+            icon: const Icon(Icons.delete_outline),
             onPressed: _deleteMaterial,
             tooltip: 'Delete',
           ),
@@ -312,83 +407,115 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Image
-            Center(
-              child: Container(
-                width: double.infinity,
-                height: 220,
-                decoration: BoxDecoration(
-                  color: AppColors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.cardBorder),
-                ),
-                child: _material.imagePath != null &&
-                        File(_material.imagePath!).existsSync()
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Image.file(
-                          File(_material.imagePath!),
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    : Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.inventory_2,
-                              size: 64,
-                              color:
-                                  AppColors.textSecondary.withOpacity(0.3)),
-                          const SizedBox(height: 8),
-                          Text('No Image',
-                              style: TextStyle(
-                                  color: AppColors.textSecondary
-                                      .withOpacity(0.5))),
-                        ],
+            Container(
+              width: double.infinity,
+              height: 200,
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.cardBorder),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.navy.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: _material.imagePath != null &&
+                      File(_material.imagePath!).existsSync()
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.file(
+                        File(_material.imagePath!),
+                        fit: BoxFit.cover,
                       ),
+                    )
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.inventory_2,
+                            size: 56,
+                            color:
+                                AppColors.textSecondary.withOpacity(0.3)),
+                        const SizedBox(height: 8),
+                        Text('No Image',
+                            style: TextStyle(
+                                color: AppColors.textSecondary
+                                    .withOpacity(0.5))),
+                      ],
+                    ),
+            ),
+            const SizedBox(height: 20),
+
+            // Stock Status
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: stockColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: stockColor.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.circle, color: stockColor, size: 12),
+                  const SizedBox(width: 8),
+                  Text(
+                    _material.currentStock <= 0
+                        ? 'Out of Stock'
+                        : _material.currentStock < 5
+                            ? 'Low Stock'
+                            : 'In Stock',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600, color: stockColor),
+                  ),
+                  const Spacer(),
+                  Text(_material.stockDisplay,
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                ],
               ),
             ),
             const SizedBox(height: 20),
 
             // Details Card
             Card(
+              elevation: 1,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
                     _detailRow('Name', _material.name),
-                    const Divider(),
+                    _divider(),
                     _detailRow('Category', _material.category),
-                    const Divider(),
                     if (_material.isFabric && _material.gsm != null) ...[
+                      _divider(),
                       _detailRow('GSM', '${_material.gsm!.toInt()} g/m²'),
-                      const Divider(),
-                      _detailRow('Usable Area',
+                      _divider(),
+                      _detailRow(
+                          'Usable Area',
                           '${(_material.currentStock * 1000 / _material.gsm!).toStringAsFixed(2)} m²'),
-                      const Divider(),
                     ],
-                    _detailRow('Current Stock', _material.stockDisplay),
-                    const Divider(),
+                    _divider(),
                     _detailRow('Unit', _material.unit),
-                    const Divider(),
+                    _divider(),
                     _detailRow(
                         'Cost',
                         'Br ${_material.costPerUnit.toStringAsFixed(2)} / ${_material.unit}'),
-                    const Divider(),
+                    _divider(),
                     _detailRow(
                       'Total Value',
                       'Br ${(_material.currentStock * _material.costPerUnit).toStringAsFixed(2)}',
                     ),
-                    const Divider(),
+                    _divider(),
                     _detailRow(
                         'Added',
-                        _material.createdAt
-                            .toString()
-                            .substring(0, 10)),
-                    const Divider(),
+                        _material.createdAt.toString().substring(0, 10)),
+                    _divider(),
                     _detailRow(
-                        'Last Updated',
-                        _material.updatedAt
-                            .toString()
-                            .substring(0, 10)),
+                        'Updated',
+                        _material.updatedAt.toString().substring(0, 10)),
                   ],
                 ),
               ),
@@ -401,12 +528,14 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: _showEditDialog,
-                    icon: const Icon(Icons.edit),
+                    icon: const Icon(Icons.edit_outlined, size: 20),
                     label: const Text('EDIT'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.navy,
                       foregroundColor: AppColors.white,
-                      minimumSize: const Size(0, 50),
+                      minimumSize: const Size(0, 52),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
                     ),
                   ),
                 ),
@@ -414,17 +543,20 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: _deleteMaterial,
-                    icon: const Icon(Icons.delete),
+                    icon: const Icon(Icons.delete_outline, size: 20),
                     label: const Text('DELETE'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.error,
                       foregroundColor: AppColors.white,
-                      minimumSize: const Size(0, 50),
+                      minimumSize: const Size(0, 52),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
                     ),
                   ),
                 ),
               ],
             ),
+            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -450,27 +582,33 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
       ),
     );
   }
+
+  Widget _divider() {
+    return Divider(height: 1, color: AppColors.cardBorder.withOpacity(0.5));
+  }
 }
 
 // ========== ADD/EDIT MATERIAL FORM ==========
-class _MaterialFormSheet extends StatefulWidget {
+class MaterialFormSheet extends StatefulWidget {
   final MaterialModel? existing;
   final VoidCallback onSaved;
-  const _MaterialFormSheet({this.existing, required this.onSaved});
+  const MaterialFormSheet({super.key, this.existing, required this.onSaved});
 
   @override
-  State<_MaterialFormSheet> createState() => _MaterialFormSheetState();
+  State<MaterialFormSheet> createState() => _MaterialFormSheetState();
 }
 
-class _MaterialFormSheetState extends State<_MaterialFormSheet> {
+class _MaterialFormSheetState extends State<MaterialFormSheet> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _stockController = TextEditingController();
   final _costController = TextEditingController();
   final _gsmController = TextEditingController();
+  final MaterialService _service = MaterialService();
   String _category = 'Fabric';
   String _unit = 'kg';
   File? _image;
+  bool _isSaving = false;
 
   bool get _isEditing => widget.existing != null;
 
@@ -492,21 +630,30 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
   }
 
   Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 800,
-      maxHeight: 800,
-    );
-    if (picked != null) {
-      setState(() => _image = File(picked.path));
-    }
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        maxHeight: 800,
+      );
+      if (picked != null && mounted) {
+        setState(() => _image = File(picked.path));
+      }
+    } catch (_) {}
   }
 
-  void _removeImage() => setState(() => _image = null);
+  void _removeImage() {
+    if (mounted) setState(() => _image = null);
+  }
 
   Future<void> _save() async {
-    if (_formKey.currentState!.validate()) {
+    if (!_formKey.currentState!.validate()) return;
+    if (_isSaving) return;
+
+    setState(() => _isSaving = true);
+
+    try {
       String? imagePath;
       if (_image != null) {
         final appDir = Directory(
@@ -536,13 +683,38 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
       );
 
       if (_isEditing) {
-        await MaterialService().update(material);
+        await _service.update(material);
       } else {
-        await MaterialService().create(material);
+        await _service.create(material);
       }
 
       widget.onSaved();
-      Navigator.pop(context);
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_isEditing
+                ? 'Material updated successfully'
+                : 'Material added successfully'),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -550,80 +722,96 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
     return Container(
-      height: MediaQuery.of(context).size.height * 0.9,
+      height: MediaQuery.of(context).size.height * 0.88,
       decoration: const BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Padding(
         padding: EdgeInsets.only(
-            left: 20, right: 20, top: 20, bottom: bottomPadding + 20),
+            left: 20, right: 20, top: 16, bottom: bottomPadding + 16),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Handle
                 Center(
                   child: Container(
-                    width: 40, height: 4,
+                    width: 40,
+                    height: 4,
                     decoration: BoxDecoration(
                       color: AppColors.cardBorder,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
                 Text(_isEditing ? 'EDIT MATERIAL' : 'ADD MATERIAL',
                     style: const TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.bold)),
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.navy)),
                 const SizedBox(height: 20),
-                DropdownButtonFormField(
+
+                // Category
+                _buildLabel('Category'),
+                const SizedBox(height: 6),
+                DropdownButtonFormField<String>(
                   value: _category,
-                  decoration: const InputDecoration(
-                      labelText: 'Category', border: OutlineInputBorder()),
+                  decoration: _inputDecoration(),
                   items: ['Fabric', 'Trim', 'Packaging']
                       .map((c) =>
                           DropdownMenuItem(value: c, child: Text(c)))
                       .toList(),
                   onChanged: (v) {
-                    setState(() {
-                      _category = v!;
-                      _unit = _category == 'Fabric' ? 'kg' : 'pieces';
-                      if (_category != 'Fabric') _gsmController.clear();
-                    });
+                    if (v != null) {
+                      setState(() {
+                        _category = v;
+                        _unit = _category == 'Fabric' ? 'kg' : 'pieces';
+                        if (_category != 'Fabric') _gsmController.clear();
+                      });
+                    }
                   },
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
+
+                // Name
+                _buildLabel('Material Name'),
+                const SizedBox(height: 6),
                 TextFormField(
                   controller: _nameController,
-                  decoration: const InputDecoration(
-                      labelText: 'Material Name',
-                      border: OutlineInputBorder()),
+                  decoration: _inputDecoration(hint: 'e.g. Cotton Jersey'),
                   validator: (v) =>
-                      v?.isEmpty == true ? 'Required' : null,
+                      (v == null || v.trim().isEmpty) ? 'Required' : null,
                 ),
-                const SizedBox(height: 12),
-                if (_category == 'Fabric')
+                const SizedBox(height: 16),
+
+                // GSM (only Fabric)
+                if (_category == 'Fabric') ...[
+                  _buildLabel('GSM (grams per square meter)'),
+                  const SizedBox(height: 6),
                   TextFormField(
                     controller: _gsmController,
-                    decoration: const InputDecoration(
-                        labelText: 'GSM (grams/m²)',
-                        border: OutlineInputBorder()),
+                    decoration: _inputDecoration(hint: 'e.g. 180'),
                     keyboardType: TextInputType.number,
                   ),
-                if (_category == 'Fabric') const SizedBox(height: 12),
+                  const SizedBox(height: 16),
+                ],
+
+                // Stock
+                _buildLabel('Stock Quantity'),
+                const SizedBox(height: 6),
                 Row(
                   children: [
                     Expanded(
                       child: TextFormField(
                         controller: _stockController,
-                        decoration: InputDecoration(
-                            labelText: 'Stock ($_unit)',
-                            border: const OutlineInputBorder()),
+                        decoration: _inputDecoration(hint: '0'),
                         keyboardType: TextInputType.number,
                         validator: (v) =>
-                            v?.isEmpty == true ? 'Required' : null,
+                            (v == null || v.trim().isEmpty) ? 'Required' : null,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -631,45 +819,50 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 14),
                       decoration: BoxDecoration(
-                        border:
-                            Border.all(color: AppColors.cardBorder),
-                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.cardBorder),
+                        borderRadius: BorderRadius.circular(12),
+                        color: AppColors.background,
                       ),
-                      child: Text(_unit),
+                      child: Text(_unit,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 15)),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
+
+                // Cost
+                _buildLabel('Cost per $_unit (Br)'),
+                const SizedBox(height: 6),
                 TextFormField(
                   controller: _costController,
-                  decoration: InputDecoration(
-                      labelText: 'Cost per $_unit (Br)',
-                      border: const OutlineInputBorder()),
-                  keyboardType: TextInputType.number,
+                  decoration: _inputDecoration(hint: '0.00'),
+                  keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true),
                   validator: (v) =>
-                      v?.isEmpty == true ? 'Required' : null,
+                      (v == null || v.trim().isEmpty) ? 'Required' : null,
                 ),
                 const SizedBox(height: 20),
-                const Text('Material Image (optional)',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 14)),
+
+                // Image
+                _buildLabel('Material Image (optional)'),
                 const SizedBox(height: 8),
                 Row(
                   children: [
                     GestureDetector(
                       onTap: _pickImage,
                       child: Container(
-                        width: 100, height: 100,
+                        width: 100,
+                        height: 100,
                         decoration: BoxDecoration(
                           color: AppColors.background,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                              color: AppColors.cardBorder),
+                              color: AppColors.cardBorder, width: 1.5),
                         ),
                         child: _image != null
                             ? ClipRRect(
-                                borderRadius:
-                                    BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(14),
                                 child: Image.file(_image!,
                                     fit: BoxFit.cover),
                               )
@@ -677,45 +870,98 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
                                 mainAxisAlignment:
                                     MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.add_a_photo,
+                                  Icon(Icons.add_a_photo_outlined,
                                       color: AppColors.textSecondary,
-                                      size: 30),
+                                      size: 28),
                                   SizedBox(height: 4),
                                   Text('Add Photo',
                                       style: TextStyle(
-                                          fontSize: 10,
-                                          color: AppColors
-                                              .textSecondary)),
+                                          fontSize: 11,
+                                          color: AppColors.textSecondary)),
                                 ],
                               ),
                       ),
                     ),
                     if (_image != null) ...[
                       const SizedBox(width: 12),
-                      IconButton(
-                        icon: const Icon(Icons.delete,
-                            color: AppColors.error, size: 28),
-                        onPressed: _removeImage,
-                        tooltip: 'Remove image',
+                      GestureDetector(
+                        onTap: _removeImage,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.delete_outline,
+                              color: AppColors.error, size: 22),
+                        ),
                       ),
                     ],
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
+
+                // Save Button
                 SizedBox(
-                  height: 50,
+                  height: 52,
                   child: ElevatedButton(
-                    onPressed: _save,
-                    child: Text(_isEditing
-                        ? 'UPDATE MATERIAL'
-                        : 'SAVE MATERIAL'),
+                    onPressed: _isSaving ? null : _save,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.navy,
+                      foregroundColor: AppColors.white,
+                      disabledBackgroundColor: AppColors.navy.withOpacity(0.6),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: AppColors.white),
+                          )
+                        : Text(
+                            _isEditing ? 'UPDATE MATERIAL' : 'SAVE MATERIAL',
+                            style: const TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.w600),
+                          ),
                   ),
                 ),
+                const SizedBox(height: 16),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildLabel(String text) {
+    return Text(text,
+        style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary));
+  }
+
+  InputDecoration _inputDecoration({String? hint}) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: TextStyle(color: AppColors.textSecondary.withOpacity(0.5)),
+      border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.cardBorder)),
+      enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.cardBorder)),
+      focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.navy, width: 2)),
+      errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.error)),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );
   }
 
@@ -730,12 +976,14 @@ class _MaterialFormSheetState extends State<_MaterialFormSheet> {
 }
 
 // ========== GSM CALCULATOR ==========
-class _GsmCalculatorSheet extends StatefulWidget {
+class GsmCalculatorSheet extends StatefulWidget {
+  const GsmCalculatorSheet({super.key});
+
   @override
-  State<_GsmCalculatorSheet> createState() => _GsmCalculatorSheetState();
+  State<GsmCalculatorSheet> createState() => _GsmCalculatorSheetState();
 }
 
-class _GsmCalculatorSheetState extends State<_GsmCalculatorSheet> {
+class _GsmCalculatorSheetState extends State<GsmCalculatorSheet> {
   final _weightController = TextEditingController();
   final _widthController = TextEditingController(text: '10');
   final _heightController = TextEditingController(text: '10');
@@ -745,7 +993,12 @@ class _GsmCalculatorSheetState extends State<_GsmCalculatorSheet> {
     final weight = double.tryParse(_weightController.text);
     final width = double.tryParse(_widthController.text);
     final height = double.tryParse(_heightController.text);
-    if (weight != null && width != null && height != null && weight > 0) {
+    if (weight != null &&
+        width != null &&
+        height != null &&
+        weight > 0 &&
+        width > 0 &&
+        height > 0) {
       setState(() {
         _calculatedGsm = GsmCalculator.calculateFromSwatch(
           swatchWeightInGrams: weight,
@@ -773,7 +1026,8 @@ class _GsmCalculatorSheetState extends State<_GsmCalculatorSheet> {
           children: [
             Center(
               child: Container(
-                width: 40, height: 4,
+                width: 40,
+                height: 4,
                 decoration: BoxDecoration(
                   color: AppColors.cardBorder,
                   borderRadius: BorderRadius.circular(2),
@@ -781,18 +1035,34 @@ class _GsmCalculatorSheetState extends State<_GsmCalculatorSheet> {
               ),
             ),
             const SizedBox(height: 20),
-            const Text('GSM CALCULATOR',
+            Row(
+              children: [
+                const Icon(Icons.calculate, color: AppColors.navy, size: 24),
+                const SizedBox(width: 8),
+                const Text('GSM CALCULATOR',
+                    style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.navy)),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const Text(
+                'Cut a 10×10 cm fabric swatch and weigh it on a scale.',
                 style: TextStyle(
-                    fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            const Text('Cut a swatch, weigh it, find exact GSM.',
-                style: TextStyle(color: AppColors.textSecondary)),
+                    color: AppColors.textSecondary, fontSize: 13)),
             const SizedBox(height: 20),
             TextFormField(
               controller: _weightController,
-              decoration: const InputDecoration(
-                  labelText: 'Weight of swatch (grams)',
-                  border: OutlineInputBorder()),
+              decoration: InputDecoration(
+                labelText: 'Weight of swatch (grams)',
+                labelStyle:
+                    const TextStyle(color: AppColors.textSecondary),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                prefixIcon:
+                    const Icon(Icons.scale, color: AppColors.navy),
+              ),
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 12),
@@ -801,9 +1071,13 @@ class _GsmCalculatorSheetState extends State<_GsmCalculatorSheet> {
                 Expanded(
                   child: TextFormField(
                     controller: _widthController,
-                    decoration: const InputDecoration(
-                        labelText: 'Width (cm)',
-                        border: OutlineInputBorder()),
+                    decoration: InputDecoration(
+                      labelText: 'Width (cm)',
+                      labelStyle:
+                          const TextStyle(color: AppColors.textSecondary),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
                     keyboardType: TextInputType.number,
                   ),
                 ),
@@ -811,9 +1085,13 @@ class _GsmCalculatorSheetState extends State<_GsmCalculatorSheet> {
                 Expanded(
                   child: TextFormField(
                     controller: _heightController,
-                    decoration: const InputDecoration(
-                        labelText: 'Height (cm)',
-                        border: OutlineInputBorder()),
+                    decoration: InputDecoration(
+                      labelText: 'Height (cm)',
+                      labelStyle:
+                          const TextStyle(color: AppColors.textSecondary),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
                     keyboardType: TextInputType.number,
                   ),
                 ),
@@ -826,18 +1104,43 @@ class _GsmCalculatorSheetState extends State<_GsmCalculatorSheet> {
                 decoration: BoxDecoration(
                   color: AppColors.success.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
+                  border:
+                      Border.all(color: AppColors.success.withOpacity(0.3)),
                 ),
-                child: Text('GSM: ${_calculatedGsm!.toInt()}',
-                    style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.success),
-                    textAlign: TextAlign.center),
+                child: Column(
+                  children: [
+                    const Text('FABRIC GSM',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                            letterSpacing: 1)),
+                    const SizedBox(height: 4),
+                    Text('${_calculatedGsm!.toInt()}',
+                        style: const TextStyle(
+                            fontSize: 36,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.success)),
+                    const Text('grams per square meter',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary)),
+                  ],
+                ),
               ),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _calculate,
-              child: const Text('CALCULATE GSM'),
+            SizedBox(
+              height: 48,
+              child: ElevatedButton.icon(
+                onPressed: _calculate,
+                icon: const Icon(Icons.calculate, size: 20),
+                label: const Text('CALCULATE GSM'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.navy,
+                  foregroundColor: AppColors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
             ),
           ],
         ),

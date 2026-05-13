@@ -42,14 +42,15 @@ class _ResultScreenState extends State<ResultScreen>
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 600),
       vsync: this,
     );
-    _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    _fadeAnimation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOut,
     );
-    _scaleAnimation = Tween<double>(begin: 0.8, end: 1).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.elasticOut),
+    _scaleAnimation = Tween<double>(begin: 0.92, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOutBack),
     );
     _runSimulation();
   }
@@ -68,17 +69,21 @@ class _ResultScreenState extends State<ResultScreen>
         names[id] = 'Material #$id';
       }
 
-      setState(() {
-        _result = result;
-        _materialNames = names;
-        _isLoading = false;
-      });
-      _animationController.forward();
+      if (mounted) {
+        setState(() {
+          _result = result;
+          _materialNames = names;
+          _isLoading = false;
+        });
+        _animationController.forward();
+      }
     } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -96,15 +101,67 @@ class _ResultScreenState extends State<ResultScreen>
         title: const Text('Simulation Result'),
         backgroundColor: AppColors.navy,
         foregroundColor: AppColors.white,
+        elevation: 0,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(color: AppColors.navy),
+                  SizedBox(height: 16),
+                  Text('Calculating...',
+                      style: TextStyle(color: AppColors.textSecondary)),
+                ],
+              ),
+            )
           : _error != null
               ? Center(
                   child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Text('Error: $_error',
-                        style: const TextStyle(color: AppColors.error)),
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.error_outline,
+                              color: AppColors.error, size: 40),
+                        ),
+                        const SizedBox(height: 16),
+                        Text('Something went wrong',
+                            style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.error.withOpacity(0.8))),
+                        const SizedBox(height: 8),
+                        Text(_error!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                                color: AppColors.textSecondary, fontSize: 13)),
+                        const SizedBox(height: 20),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _isLoading = true;
+                              _error = null;
+                            });
+                            _runSimulation();
+                          },
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: const Text('TRY AGAIN'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.navy,
+                            foregroundColor: AppColors.white,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 )
               : _buildResult(),
@@ -113,36 +170,22 @@ class _ResultScreenState extends State<ResultScreen>
 
   Widget _buildResult() {
     final result = _result!;
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: FadeTransition(
-        opacity: _fadeAnimation,
-        child: ScaleTransition(
-          scale: _scaleAnimation,
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: ScaleTransition(
+        scale: _scaleAnimation,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildMainResultCard(result),
-              const SizedBox(height: 20),
+              _buildYieldCard(result),
+              const SizedBox(height: 16),
               _buildMaterialsCheckCard(result),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               _buildMoneyCard(result),
-              const SizedBox(height: 20),
-              SizedBox(
-                height: 56,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  icon: const Icon(Icons.check_circle, size: 24),
-                  label: const Text('GO TO RECORD PRODUCTION',
-                      style: TextStyle(fontSize: 16, letterSpacing: 1)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.success,
-                    foregroundColor: AppColors.white,
-                  ),
-                ),
-              ),
+              const SizedBox(height: 24),
+              _buildActionButtons(result),
               const SizedBox(height: 20),
             ],
           ),
@@ -151,75 +194,141 @@ class _ResultScreenState extends State<ResultScreen>
     );
   }
 
-  Widget _buildMainResultCard(SimulationResult result) {
+  Widget _buildYieldCard(SimulationResult result) {
     return Card(
+      elevation: 1,
+      shadowColor: AppColors.navy.withOpacity(0.08),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(
-        padding: const EdgeInsets.all(30),
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
         child: Column(
           children: [
-            Text(
-              '${widget.availableQuantity} ${widget.material.unit} ${widget.material.name}',
-              style: Theme.of(context).textTheme.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
-            if (widget.material.isFabric && widget.material.gsm != null)
-              Text(
-                '(${widget.material.gsm!.toInt()} GSM)',
-                style: Theme.of(context).textTheme.bodyMedium,
+            // Input summary
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(12),
               ),
-            const SizedBox(height: 8),
-            const Icon(Icons.arrow_downward, color: AppColors.gold, size: 30),
-            const SizedBox(height: 8),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.inventory_2,
+                          color: AppColors.navy, size: 18),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          '${widget.availableQuantity} ${widget.material.unit} ${widget.material.name}',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 14),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (widget.material.isFabric && widget.material.gsm != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text('(${widget.material.gsm!.toInt()} GSM)',
+                          style: const TextStyle(
+                              color: AppColors.textSecondary, fontSize: 12)),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Icon(Icons.arrow_downward_rounded,
+                color: AppColors.gold, size: 28),
+            const SizedBox(height: 16),
             Text(
               '${widget.product.name} (${widget.sizeVariant.sizeName})',
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
+
+            // Yield number
             Container(
-              padding: const EdgeInsets.all(20),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 24),
               decoration: BoxDecoration(
-                color: AppColors.navy.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.navy.withOpacity(0.04),
+                    AppColors.navy.withOpacity(0.02),
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                    color: AppColors.navy.withOpacity(0.08), width: 1.5),
               ),
               child: Column(
                 children: [
                   const Text('YOU CAN MAKE',
                       style: TextStyle(
-                          fontSize: 14, color: AppColors.textSecondary)),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary,
+                          letterSpacing: 1.5)),
+                  const SizedBox(height: 8),
                   Text(
                     '${result.maxPieces}',
                     style: const TextStyle(
-                        fontSize: 64,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.navy),
+                        fontSize: 68,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.navy,
+                        height: 1),
                   ),
+                  const SizedBox(height: 4),
                   Text(
                     '${widget.product.name}S',
                     style: const TextStyle(
-                        fontSize: 18,
+                        fontSize: 17,
                         fontWeight: FontWeight.w600,
                         color: AppColors.navy),
                   ),
-                  if (result.limitingFactor != null) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.warning.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        'Limited by: ${result.limitingFactor}',
-                        style: const TextStyle(
-                            color: AppColors.warning, fontSize: 12),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
+
+            // Limiting factor
+            if (result.limitingFactor != null) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border:
+                      Border.all(color: AppColors.warning.withOpacity(0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.warning_amber_rounded,
+                        color: AppColors.warning, size: 16),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'Limited by: ${result.limitingFactor}',
+                        style: const TextStyle(
+                            color: AppColors.warning,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -228,18 +337,45 @@ class _ResultScreenState extends State<ResultScreen>
 
   Widget _buildMaterialsCheckCard(SimulationResult result) {
     return Card(
+      elevation: 1,
+      shadowColor: AppColors.navy.withOpacity(0.05),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('MATERIALS CHECK',
-                style: TextStyle(
-                    fontWeight: FontWeight.w600, letterSpacing: 1)),
-            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(Icons.checklist, color: AppColors.navy, size: 20),
+                const SizedBox(width: 8),
+                const Text('MATERIALS CHECK',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        letterSpacing: 0.5,
+                        color: AppColors.navy)),
+              ],
+            ),
+            const SizedBox(height: 16),
             if (result.materialSufficiency.isEmpty)
-              const Text('No recipe items found for this product.',
-                  style: TextStyle(color: AppColors.textSecondary))
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.info_outline,
+                        color: AppColors.textSecondary, size: 18),
+                    SizedBox(width: 8),
+                    Text('No recipe items found for this product.',
+                        style: TextStyle(
+                            color: AppColors.textSecondary, fontSize: 13)),
+                  ],
+                ),
+              )
             else
               ...result.materialSufficiency.entries.map((entry) {
                 final materialId = entry.key;
@@ -248,15 +384,39 @@ class _ResultScreenState extends State<ResultScreen>
                 final name =
                     _materialNames[materialId] ?? 'Material #$materialId';
 
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isEnough
+                        ? AppColors.success.withOpacity(0.04)
+                        : AppColors.error.withOpacity(0.04),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isEnough
+                          ? AppColors.success.withOpacity(0.15)
+                          : AppColors.error.withOpacity(0.15),
+                    ),
+                  ),
                   child: Row(
                     children: [
-                      Icon(
-                        isEnough ? Icons.check_circle : Icons.cancel,
-                        color:
-                            isEnough ? AppColors.success : AppColors.error,
-                        size: 20,
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: isEnough
+                              ? AppColors.success.withOpacity(0.1)
+                              : AppColors.error.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          isEnough
+                              ? Icons.check_rounded
+                              : Icons.close_rounded,
+                          color: isEnough
+                              ? AppColors.success
+                              : AppColors.error,
+                          size: 16,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -266,23 +426,34 @@ class _ResultScreenState extends State<ResultScreen>
                             Text(
                               name,
                               style: TextStyle(
-                                fontWeight: FontWeight.w500,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
                                 color: isEnough
                                     ? AppColors.textPrimary
                                     : AppColors.error,
                               ),
                             ),
+                            const SizedBox(height: 2),
                             Text(
                               '${needed.toStringAsFixed(2)} needed',
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 11,
                                 color: isEnough
                                     ? AppColors.textSecondary
-                                    : AppColors.error,
+                                    : AppColors.error.withOpacity(0.8),
                               ),
                             ),
                           ],
                         ),
+                      ),
+                      Icon(
+                        isEnough
+                            ? Icons.check_circle_rounded
+                            : Icons.cancel_rounded,
+                        color: isEnough
+                            ? AppColors.success
+                            : AppColors.error,
+                        size: 22,
                       ),
                     ],
                   ),
@@ -300,113 +471,218 @@ class _ResultScreenState extends State<ResultScreen>
         ? result.totalCost / result.maxPieces
         : 0.0;
     final profitPerPiece = revenuePerPiece - costPerPiece;
+    final profitMargin = revenuePerPiece > 0
+        ? (profitPerPiece / revenuePerPiece * 100)
+        : 0.0;
     final totalPieces = result.maxPieces;
 
     return Card(
+      elevation: 1,
+      shadowColor: AppColors.navy.withOpacity(0.05),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('MONEY BREAKDOWN',
-                style: TextStyle(
-                    fontWeight: FontWeight.w600, letterSpacing: 1)),
+            Row(
+              children: [
+                const Icon(Icons.account_balance_wallet,
+                    color: AppColors.navy, size: 20),
+                const SizedBox(width: 8),
+                const Text('MONEY BREAKDOWN',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        letterSpacing: 0.5,
+                        color: AppColors.navy)),
+              ],
+            ),
             const SizedBox(height: 16),
 
             // Per Piece Breakdown
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.cardBorder),
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.navy.withOpacity(0.03),
+                    AppColors.navy.withOpacity(0.01),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border:
+                    Border.all(color: AppColors.cardBorder.withOpacity(0.5)),
               ),
               child: Column(
                 children: [
-                  const Text('PER PIECE',
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textSecondary,
-                          letterSpacing: 1)),
-                  const SizedBox(height: 12),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Selling Price'),
-                      Text(CurrencyFormatter.format(revenuePerPiece),
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600, fontSize: 16)),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Material Cost'),
-                      Text(CurrencyFormatter.format(costPerPiece),
-                          style: const TextStyle(
-                              color: AppColors.error, fontSize: 16)),
-                    ],
-                  ),
-                  const Divider(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('PROFIT PER PIECE',
+                      const Text('PER PIECE',
                           style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 14)),
-                      Text(CurrencyFormatter.format(profitPerPiece),
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.success,
-                              fontSize: 18)),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textSecondary,
+                              letterSpacing: 1)),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: profitMargin >= 30
+                              ? AppColors.success.withOpacity(0.1)
+                              : AppColors.warning.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text('${profitMargin.toStringAsFixed(1)}% margin',
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: profitMargin >= 30
+                                    ? AppColors.success
+                                    : AppColors.warning)),
+                      ),
                     ],
                   ),
+                  const SizedBox(height: 14),
+                  _perPieceRow(
+                      'Selling Price', revenuePerPiece, AppColors.navy, false),
+                  const SizedBox(height: 8),
+                  _perPieceRow(
+                      'Material Cost', costPerPiece, AppColors.error, false),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Divider(height: 1),
+                  ),
+                  _perPieceRow('PROFIT', profitPerPiece, AppColors.success,
+                      true),
                 ],
               ),
             ),
             const SizedBox(height: 16),
 
             // Total for Batch
-            Text('TOTAL ($totalPieces pieces)',
-                style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
-                    letterSpacing: 1)),
-            const SizedBox(height: 8),
-            _moneyRow('Total Revenue', result.totalRevenue, AppColors.success),
-            _moneyRow('Total Cost', result.totalCost, AppColors.error),
-            const Divider(height: 24),
-            _moneyRow(
-                'NET PROFIT', result.netProfit, AppColors.navy, isBold: true),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text('TOTAL BATCH ($totalPieces pieces)',
+                          style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                              letterSpacing: 0.5)),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  _totalRow('Total Revenue', result.totalRevenue,
+                      AppColors.success),
+                  const SizedBox(height: 6),
+                  _totalRow(
+                      'Total Cost', result.totalCost, AppColors.error),
+                  const SizedBox(height: 8),
+                  const Divider(height: 1),
+                  const SizedBox(height: 8),
+                  _totalRow('NET PROFIT', result.netProfit, AppColors.navy,
+                      isBold: true),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _moneyRow(String label, double amount, Color color,
-      {bool isBold = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label,
-              style: TextStyle(
-                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-                  fontSize: isBold ? 18 : 14)),
-          Text(
-            CurrencyFormatter.format(amount),
+  Widget _perPieceRow(
+      String label, double amount, Color color, bool isBold) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label,
             style: TextStyle(
-                color: color,
-                fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-                fontSize: isBold ? 18 : 14),
+                fontSize: isBold ? 14 : 13,
+                fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
+                color: isBold ? color : AppColors.textSecondary)),
+        Text(
+          CurrencyFormatter.format(amount),
+          style: TextStyle(
+              fontSize: isBold ? 16 : 14,
+              fontWeight: isBold ? FontWeight.w800 : FontWeight.w600,
+              color: color),
+        ),
+      ],
+    );
+  }
+
+  Widget _totalRow(String label, double amount, Color color,
+      {bool isBold = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label,
+            style: TextStyle(
+                fontSize: isBold ? 15 : 13,
+                fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
+                color: AppColors.textSecondary)),
+        Text(
+          CurrencyFormatter.format(amount),
+          style: TextStyle(
+              fontSize: isBold ? 18 : 14,
+              fontWeight: isBold ? FontWeight.w800 : FontWeight.w600,
+              color: color),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons(SimulationResult result) {
+    return Row(
+      children: [
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.arrow_back_rounded, size: 20),
+            label: const Text('BACK'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.white,
+              foregroundColor: AppColors.navy,
+              minimumSize: const Size(0, 52),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: const BorderSide(color: AppColors.cardBorder)),
+            ),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 2,
+          child: ElevatedButton.icon(
+            onPressed: result.maxPieces > 0
+                ? () {
+                    Navigator.pop(context);
+                  }
+                : null,
+            icon: const Icon(Icons.play_circle_rounded, size: 22),
+            label: const Text('RECORD PRODUCTION',
+                style:
+                    TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.success,
+              foregroundColor: AppColors.white,
+              disabledBackgroundColor: AppColors.success.withOpacity(0.4),
+              minimumSize: const Size(0, 52),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

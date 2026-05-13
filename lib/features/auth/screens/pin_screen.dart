@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../shared/widgets/main_scaffold.dart';
+import 'package:family_garment/core/theme/app_theme.dart';
+import 'package:family_garment/shared/widgets/main_scaffold.dart';
 
 class PinScreen extends StatefulWidget {
   const PinScreen({super.key});
@@ -30,7 +30,6 @@ class _PinScreenState extends State<PinScreen>
 
   // Reset flow
   bool _isResetting = false;
-  String _resetAnswer = '';
 
   late AnimationController _shakeController;
   late Animation<Offset> _shakeAnimation;
@@ -54,17 +53,16 @@ class _PinScreenState extends State<PinScreen>
     String? question = await _storage.read(key: 'security_question');
     String? answer = await _storage.read(key: 'security_answer');
 
-    if (pin != null && pin.length == 4) {
+    if (mounted) {
       setState(() {
-        _storedPin = pin;
-        _isFirstTime = false;
-      });
-    }
-
-    if (question != null && answer != null) {
-      setState(() {
-        _securityQuestion = question;
-        _securityAnswer = answer;
+        if (pin != null && pin.length == 4) {
+          _storedPin = pin;
+          _isFirstTime = false;
+        }
+        if (question != null && answer != null) {
+          _securityQuestion = question;
+          _securityAnswer = answer;
+        }
       });
     }
   }
@@ -91,60 +89,63 @@ class _PinScreenState extends State<PinScreen>
   Future<void> _verifyPin() async {
     final entered = _enteredPin.join();
 
-    // First time setup
     if (_isFirstTime) {
       if (!_isConfirming) {
         await Future.delayed(const Duration(milliseconds: 300));
-        setState(() {
-          _firstPin = entered;
-          _isConfirming = true;
-          _enteredPin.clear();
-          _statusMessage = 'Confirm PIN';
-        });
+        if (mounted) {
+          setState(() {
+            _firstPin = entered;
+            _isConfirming = true;
+            _enteredPin.clear();
+            _statusMessage = 'Confirm PIN';
+          });
+        }
       } else {
         if (entered == _firstPin) {
           await _storage.write(key: 'user_pin', value: entered);
-          // Now ask for security question
-          setState(() {
-            _isSettingSecurity = true;
-            _statusMessage = 'Set security question';
-          });
+          if (mounted) {
+            setState(() {
+              _isSettingSecurity = true;
+            });
+          }
         } else {
           _showError("PINs don't match. Try again.");
-          setState(() {
-            _isConfirming = false;
-            _firstPin = '';
-            _statusMessage = 'Enter PIN';
-          });
+          if (mounted) {
+            setState(() {
+              _isConfirming = false;
+              _firstPin = '';
+              _statusMessage = 'Enter PIN';
+            });
+          }
         }
       }
-    }
-    // Reset flow - setting new PIN
-    else if (_isResetting) {
+    } else if (_isResetting) {
       if (!_isConfirming) {
         await Future.delayed(const Duration(milliseconds: 300));
-        setState(() {
-          _firstPin = entered;
-          _isConfirming = true;
-          _enteredPin.clear();
-          _statusMessage = 'Confirm new PIN';
-        });
+        if (mounted) {
+          setState(() {
+            _firstPin = entered;
+            _isConfirming = true;
+            _enteredPin.clear();
+            _statusMessage = 'Confirm new PIN';
+          });
+        }
       } else {
         if (entered == _firstPin) {
           await _storage.write(key: 'user_pin', value: entered);
           _navigateToApp();
         } else {
           _showError("PINs don't match. Try again.");
-          setState(() {
-            _isConfirming = false;
-            _firstPin = '';
-            _statusMessage = 'Enter new PIN';
-          });
+          if (mounted) {
+            setState(() {
+              _isConfirming = false;
+              _firstPin = '';
+              _statusMessage = 'Enter new PIN';
+            });
+          }
         }
       }
-    }
-    // Normal login
-    else {
+    } else {
       if (entered == _storedPin) {
         _navigateToApp();
       } else {
@@ -155,24 +156,31 @@ class _PinScreenState extends State<PinScreen>
 
   void _showError(String message) {
     _shakeController.forward().then((_) => _shakeController.reverse());
-    setState(() {
-      _enteredPin.clear();
-      _isError = true;
-      _statusMessage = message;
-    });
+    if (mounted) {
+      setState(() {
+        _enteredPin.clear();
+        _isError = true;
+        _statusMessage = message;
+      });
+    }
   }
 
   void _navigateToApp() {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const MainScaffold()),
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => const MainScaffold(),
+        transitionDuration: const Duration(milliseconds: 400),
+        transitionsBuilder: (_, animation, __, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
     );
   }
 
   // ========== FORGOT PIN FLOW ==========
   void _forgotPin() {
     if (_securityQuestion.isEmpty || _securityAnswer.isEmpty) {
-      // No security question set - should not happen
       _showResetPinDirectly();
     } else {
       _showSecurityQuestionDialog();
@@ -184,24 +192,54 @@ class _PinScreenState extends State<PinScreen>
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Reset PIN'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.navy.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.lock_outline, color: AppColors.navy, size: 20),
+            ),
+            const SizedBox(width: 12),
+            const Text('Reset PIN', style: TextStyle(color: AppColors.navy)),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Security Question:',
+            const Text('Security Question:',
                 style: TextStyle(
-                    fontWeight: FontWeight.w600, color: AppColors.navy)),
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                    fontSize: 13)),
             const SizedBox(height: 8),
-            Text(_securityQuestion,
-                style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(_securityQuestion,
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w500)),
+            ),
+            const SizedBox(height: 20),
             TextField(
               controller: answerController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Your Answer',
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide:
+                        const BorderSide(color: AppColors.navy, width: 2)),
               ),
+              autofocus: true,
             ),
           ],
         ),
@@ -212,21 +250,28 @@ class _PinScreenState extends State<PinScreen>
           ),
           ElevatedButton(
             onPressed: () {
-              if (answerController.text
-                      .trim()
-                      .toLowerCase() ==
+              if (answerController.text.trim().toLowerCase() ==
                   _securityAnswer.toLowerCase()) {
                 Navigator.pop(ctx);
                 _startResetFlow();
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Wrong answer. Try again.'),
+                  SnackBar(
+                    content: const Text('Wrong answer. Try again.'),
                     backgroundColor: AppColors.error,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
                 );
               }
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.navy,
+              foregroundColor: AppColors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
             child: const Text('Verify'),
           ),
         ],
@@ -238,6 +283,7 @@ class _PinScreenState extends State<PinScreen>
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Reset PIN'),
         content: const Text(
             'No security question found. You can reset your PIN now.'),
@@ -251,6 +297,12 @@ class _PinScreenState extends State<PinScreen>
               Navigator.pop(ctx);
               _startResetFlow();
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.navy,
+              foregroundColor: AppColors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
             child: const Text('Reset PIN'),
           ),
         ],
@@ -259,14 +311,16 @@ class _PinScreenState extends State<PinScreen>
   }
 
   void _startResetFlow() {
-    setState(() {
-      _isResetting = true;
-      _isConfirming = false;
-      _enteredPin.clear();
-      _firstPin = '';
-      _statusMessage = 'Enter new PIN';
-      _isError = false;
-    });
+    if (mounted) {
+      setState(() {
+        _isResetting = true;
+        _isConfirming = false;
+        _enteredPin.clear();
+        _firstPin = '';
+        _statusMessage = 'Enter new PIN';
+        _isError = false;
+      });
+    }
   }
 
   // ========== SECURITY QUESTION SETUP ==========
@@ -274,9 +328,12 @@ class _PinScreenState extends State<PinScreen>
     if (_questionController.text.trim().isEmpty ||
         _answerController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fill both fields'),
+        SnackBar(
+          content: const Text('Please fill both fields'),
           backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
       return;
@@ -288,19 +345,19 @@ class _PinScreenState extends State<PinScreen>
         key: 'security_answer',
         value: _answerController.text.trim().toLowerCase());
 
-    setState(() {
-      _securityQuestion = _questionController.text.trim();
-      _securityAnswer = _answerController.text.trim().toLowerCase();
-      _isSettingSecurity = false;
-    });
+    if (mounted) {
+      setState(() {
+        _securityQuestion = _questionController.text.trim();
+        _securityAnswer = _answerController.text.trim().toLowerCase();
+        _isSettingSecurity = false;
+      });
+    }
 
     _navigateToApp();
   }
 
   void _skipSecurityQuestion() {
-    setState(() {
-      _isSettingSecurity = false;
-    });
+    if (mounted) setState(() => _isSettingSecurity = false);
     _navigateToApp();
   }
 
@@ -314,30 +371,41 @@ class _PinScreenState extends State<PinScreen>
 
   @override
   Widget build(BuildContext context) {
-    // Security question setup screen
     if (_isSettingSecurity) {
       return _buildSecuritySetupScreen();
     }
 
-    // Normal PIN screen
     return Scaffold(
       backgroundColor: AppColors.navy,
       body: SafeArea(
         child: Center(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 40),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.checkroom_rounded,
-                    size: 64, color: AppColors.gold),
-                const SizedBox(height: 16),
+                const SizedBox(height: 40),
+                // Logo
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppColors.gold.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                        color: AppColors.gold.withOpacity(0.3), width: 2),
+                  ),
+                  child: const Icon(Icons.checkroom_rounded,
+                      size: 48, color: AppColors.gold),
+                ),
+                const SizedBox(height: 24),
                 Text('FAMILY GARMENT',
                     style: Theme.of(context)
                         .textTheme
                         .headlineMedium
                         ?.copyWith(
-                            color: AppColors.white, letterSpacing: 3)),
+                            color: AppColors.white,
+                            letterSpacing: 4,
+                            fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
                 Text('Know Your Numbers',
                     style: Theme.of(context)
@@ -353,35 +421,50 @@ class _PinScreenState extends State<PinScreen>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(4, (index) {
                       bool filled = index < _enteredPin.length;
-                      return Container(
-                        margin:
-                            const EdgeInsets.symmetric(horizontal: 10),
-                        width: 20,
-                        height: 20,
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        margin: const EdgeInsets.symmetric(horizontal: 10),
+                        width: 22,
+                        height: 22,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
                               color: _isError
                                   ? AppColors.error
                                   : AppColors.gold,
-                              width: 2),
+                              width: 2.5),
                           color: filled
-                              ? (_isError
-                                  ? AppColors.error
-                                  : AppColors.gold)
+                              ? (_isError ? AppColors.error : AppColors.gold)
                               : Colors.transparent,
+                          boxShadow: filled
+                              ? [
+                                  BoxShadow(
+                                    color: (_isError
+                                            ? AppColors.error
+                                            : AppColors.gold)
+                                        .withOpacity(0.4),
+                                    blurRadius: 8,
+                                    spreadRadius: 1,
+                                  )
+                                ]
+                              : null,
                         ),
                       );
                     }),
                   ),
                 ),
-                const SizedBox(height: 16),
-                Text(_statusMessage,
-                    style: TextStyle(
-                        color: _isError
-                            ? AppColors.error
-                            : AppColors.goldLight,
-                        fontSize: 14)),
+                const SizedBox(height: 20),
+                AnimatedOpacity(
+                  duration: const Duration(milliseconds: 300),
+                  opacity: _statusMessage.isNotEmpty ? 1 : 0,
+                  child: Text(_statusMessage,
+                      style: TextStyle(
+                          color: _isError
+                              ? AppColors.error
+                              : AppColors.goldLight,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500)),
+                ),
                 const SizedBox(height: 50),
 
                 // Number pad
@@ -396,8 +479,11 @@ class _PinScreenState extends State<PinScreen>
                     child: Text(
                       'Forgot PIN?',
                       style: TextStyle(
-                        color: AppColors.goldLight.withOpacity(0.8),
+                        color: AppColors.goldLight.withOpacity(0.7),
                         fontSize: 14,
+                        decoration: TextDecoration.underline,
+                        decorationColor:
+                            AppColors.goldLight.withOpacity(0.4),
                       ),
                     ),
                   ),
@@ -405,21 +491,24 @@ class _PinScreenState extends State<PinScreen>
                 if (_isResetting)
                   TextButton(
                     onPressed: () {
-                      setState(() {
-                        _isResetting = false;
-                        _enteredPin.clear();
-                        _statusMessage = 'Enter PIN';
-                        _isError = false;
-                      });
+                      if (mounted) {
+                        setState(() {
+                          _isResetting = false;
+                          _enteredPin.clear();
+                          _statusMessage = 'Enter PIN';
+                          _isError = false;
+                        });
+                      }
                     },
                     child: Text(
                       'Cancel Reset',
                       style: TextStyle(
-                        color: AppColors.goldLight.withOpacity(0.8),
+                        color: AppColors.goldLight.withOpacity(0.7),
                         fontSize: 14,
                       ),
                     ),
                   ),
+                const SizedBox(height: 40),
               ],
             ),
           ),
@@ -438,9 +527,16 @@ class _PinScreenState extends State<PinScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.security,
-                    size: 50, color: AppColors.gold),
-                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppColors.gold.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.security_rounded,
+                      size: 40, color: AppColors.gold),
+                ),
+                const SizedBox(height: 24),
                 Text('Security Setup',
                     style: Theme.of(context)
                         .textTheme
@@ -454,30 +550,34 @@ class _PinScreenState extends State<PinScreen>
                       color: AppColors.goldLight.withOpacity(0.8),
                       fontSize: 14),
                 ),
-                const SizedBox(height: 30),
+                const SizedBox(height: 36),
                 TextField(
                   controller: _questionController,
                   style: const TextStyle(color: AppColors.white),
+                  cursorColor: AppColors.gold,
                   decoration: InputDecoration(
                     labelText: 'Security Question',
-                    labelStyle: const TextStyle(color: AppColors.goldLight),
+                    labelStyle:
+                        const TextStyle(color: AppColors.goldLight),
                     hintText: 'e.g. What is your mother\'s maiden name?',
                     hintStyle: TextStyle(
-                        color: AppColors.goldLight.withOpacity(0.5)),
+                        color: AppColors.goldLight.withOpacity(0.4)),
+                    filled: true,
+                    fillColor: AppColors.navyLight.withOpacity(0.3),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          BorderSide(color: AppColors.gold.withOpacity(0.5)),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(
+                          color: AppColors.gold.withOpacity(0.3)),
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          BorderSide(color: AppColors.gold.withOpacity(0.5)),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(
+                          color: AppColors.gold.withOpacity(0.3)),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          const BorderSide(color: AppColors.gold, width: 2),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(
+                          color: AppColors.gold, width: 2),
                     ),
                   ),
                 ),
@@ -485,48 +585,56 @@ class _PinScreenState extends State<PinScreen>
                 TextField(
                   controller: _answerController,
                   style: const TextStyle(color: AppColors.white),
+                  cursorColor: AppColors.gold,
                   decoration: InputDecoration(
                     labelText: 'Answer',
-                    labelStyle: const TextStyle(color: AppColors.goldLight),
+                    labelStyle:
+                        const TextStyle(color: AppColors.goldLight),
+                    filled: true,
+                    fillColor: AppColors.navyLight.withOpacity(0.3),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          BorderSide(color: AppColors.gold.withOpacity(0.5)),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(
+                          color: AppColors.gold.withOpacity(0.3)),
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          BorderSide(color: AppColors.gold.withOpacity(0.5)),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(
+                          color: AppColors.gold.withOpacity(0.3)),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          const BorderSide(color: AppColors.gold, width: 2),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(
+                          color: AppColors.gold, width: 2),
                     ),
                   ),
                 ),
-                const SizedBox(height: 30),
+                const SizedBox(height: 36),
                 SizedBox(
                   width: double.infinity,
-                  height: 50,
+                  height: 52,
                   child: ElevatedButton(
                     onPressed: _saveSecurityQuestion,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.gold,
                       foregroundColor: AppColors.navy,
+                      elevation: 4,
+                      shadowColor: AppColors.gold.withOpacity(0.4),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
                     ),
                     child: const Text('SAVE & CONTINUE',
                         style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16)),
+                            fontWeight: FontWeight.w700, fontSize: 16)),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 TextButton(
                   onPressed: _skipSecurityQuestion,
                   child: Text(
                     'Skip (not recommended)',
                     style: TextStyle(
-                      color: AppColors.goldLight.withOpacity(0.6),
+                      color: AppColors.goldLight.withOpacity(0.5),
                       fontSize: 13,
                     ),
                   ),
@@ -543,19 +651,25 @@ class _PinScreenState extends State<PinScreen>
     return Column(
       children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-          _numberButton('1'), _numberButton('2'), _numberButton('3')
+          _numberButton('1'),
+          _numberButton('2'),
+          _numberButton('3')
         ]),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-          _numberButton('4'), _numberButton('5'), _numberButton('6')
+          _numberButton('4'),
+          _numberButton('5'),
+          _numberButton('6')
         ]),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-          _numberButton('7'), _numberButton('8'), _numberButton('9')
+          _numberButton('7'),
+          _numberButton('8'),
+          _numberButton('9')
         ]),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-          const SizedBox(width: 70),
+          const SizedBox(width: 72),
           _numberButton('0'),
           _deleteButton(),
         ]),
@@ -566,20 +680,21 @@ class _PinScreenState extends State<PinScreen>
   Widget _numberButton(String number) {
     return GestureDetector(
       onTap: () => _onNumberTap(number),
-      child: Container(
-        width: 70,
-        height: 70,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: 72,
+        height: 72,
         decoration: BoxDecoration(
-          color: AppColors.navyLight.withOpacity(0.3),
-          borderRadius: BorderRadius.circular(35),
-          border: Border.all(color: AppColors.gold.withOpacity(0.3)),
+          color: AppColors.navyLight.withOpacity(0.25),
+          borderRadius: BorderRadius.circular(36),
+          border: Border.all(color: AppColors.gold.withOpacity(0.25)),
         ),
         child: Center(
           child: Text(number,
               style: const TextStyle(
                   color: AppColors.white,
                   fontSize: 28,
-                  fontWeight: FontWeight.w500)),
+                  fontWeight: FontWeight.w400)),
         ),
       ),
     );
@@ -589,15 +704,15 @@ class _PinScreenState extends State<PinScreen>
     return GestureDetector(
       onTap: _onDeleteTap,
       child: Container(
-        width: 70,
-        height: 70,
+        width: 72,
+        height: 72,
         decoration: BoxDecoration(
           color: Colors.transparent,
-          borderRadius: BorderRadius.circular(35),
+          borderRadius: BorderRadius.circular(36),
         ),
         child: const Center(
           child: Icon(Icons.backspace_outlined,
-              color: AppColors.goldLight, size: 28),
+              color: AppColors.goldLight, size: 26),
         ),
       ),
     );
