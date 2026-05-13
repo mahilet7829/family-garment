@@ -105,13 +105,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         foregroundColor: AppColors.white,
         elevation: 0,
       ),
-     body: SingleChildScrollView(
-  padding: EdgeInsets.only(
-    left: 20,
-    right: 20,
-    top: 20,
-    bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-  ),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -189,7 +189,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 items: _products.map((p) {
                   return DropdownMenuItem(
                     value: p.id,
-                    child: Text('${p.name} (Br ${p.sellingPrice.toStringAsFixed(2)}/pc)'),
+                    child: Text(
+                        '${p.name} (Br ${p.sellingPrice.toStringAsFixed(2)}/pc)'),
                   );
                 }).toList(),
                 onChanged: (id) {
@@ -226,7 +227,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: Text(
-                  '⚠️ No sizes added for this product. Go to Products tab to add sizes.',
+                  'No sizes added for this product. Go to Products tab to add sizes.',
                   style: TextStyle(color: AppColors.warning, fontSize: 13),
                 ),
               ),
