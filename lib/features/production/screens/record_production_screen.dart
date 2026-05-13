@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_theme.dart';
-import '../../../../core/utils/currency_formatter.dart';
-import '../../../../models/product_model.dart';
-import '../../../../models/size_variant_model.dart';
-import '../../../../models/production_log_model.dart';
-import '../../../../services/product_service.dart';
-import '../../../../services/production_service.dart';
+import 'package:family_garment/core/theme/app_theme.dart';
+import 'package:family_garment/core/utils/currency_formatter.dart';
+import 'package:family_garment/models/product_model.dart';
+import 'package:family_garment/models/size_variant_model.dart';
+import 'package:family_garment/models/production_log_model.dart';
+import 'package:family_garment/services/product_service.dart';
+import 'package:family_garment/services/production_service.dart';
+
 class RecordProductionScreen extends StatefulWidget {
   const RecordProductionScreen({super.key});
 
@@ -72,12 +73,13 @@ class _RecordProductionScreenState extends State<RecordProductionScreen> {
     try {
       final recipeItems =
           await _productService.getRecipeItems(_selectedProduct!.id!);
+
+      final materialUsage = _selectedSize!.materialUsage;
       final materialsToDeduct = <int, double>{};
       final materialNames = <int, String>{};
 
       for (var item in recipeItems) {
-        final qtyPerPiece =
-            _selectedSize!.materialUsage[item.materialId] ?? 0;
+        final qtyPerPiece = materialUsage[item.materialId] ?? 0;
         final totalNeeded = qtyPerPiece * quantity;
         if (totalNeeded > 0) {
           materialsToDeduct[item.materialId] = totalNeeded;
@@ -88,8 +90,14 @@ class _RecordProductionScreenState extends State<RecordProductionScreen> {
       final totalRevenue = _selectedProduct!.sellingPrice * quantity;
       double totalCost = 0;
       for (var item in recipeItems) {
-        final qtyNeeded = materialsToDeduct[item.materialId] ?? 0;
-        totalCost += qtyNeeded * item.costPerUnit;
+        final qtyUsed = materialsToDeduct[item.materialId] ?? 0;
+        final gsm = item.gsm;
+        if (item.isFabric && gsm != null && gsm > 0) {
+          final weightInGrams = qtyUsed * gsm;
+          totalCost += (weightInGrams / 1000) * item.costPerUnit;
+        } else {
+          totalCost += qtyUsed * item.costPerUnit;
+        }
       }
       final netProfit = totalRevenue - totalCost;
 
@@ -105,21 +113,25 @@ class _RecordProductionScreenState extends State<RecordProductionScreen> {
         materialNames: materialNames,
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              '✅ $quantity ${_selectedProduct!.name} recorded! Profit: ${CurrencyFormatter.format(netProfit)}'),
-          backgroundColor: AppColors.success,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                '✅ $quantity ${_selectedProduct!.name} recorded! Profit: ${CurrencyFormatter.format(netProfit)}'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
 
       _quantityController.clear();
       _loadData();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Error: $e'), backgroundColor: AppColors.error),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Error: $e'), backgroundColor: AppColors.error),
+        );
+      }
     }
 
     setState(() => _isLoading = false);
@@ -127,6 +139,7 @@ class _RecordProductionScreenState extends State<RecordProductionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -134,13 +147,13 @@ class _RecordProductionScreenState extends State<RecordProductionScreen> {
         backgroundColor: AppColors.navy,
         foregroundColor: AppColors.white,
       ),
-     body: SingleChildScrollView(
-  padding: EdgeInsets.only(
-    left: 20,
-    right: 20,
-    top: 20,
-    bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-  ),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: bottomPadding + 20,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -260,5 +273,3 @@ class _RecordProductionScreenState extends State<RecordProductionScreen> {
     super.dispose();
   }
 }
-
-// Need this import at the top

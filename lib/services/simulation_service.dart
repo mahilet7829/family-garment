@@ -120,8 +120,10 @@ class SimulationService {
       final totalNeeded = qtyPerPiece * limitingPieces;
 
       double materialCost;
-      if (item.isFabric && item.gsm != null && item.gsm > 0) {
-        final weightInGrams = item.gsm! * totalNeeded;
+      // Fix: use local variable to avoid null promotion issue
+      final gsm = item.gsm;
+      if (item.isFabric && gsm != null && gsm > 0) {
+        final weightInGrams = gsm * totalNeeded;
         materialCost = (weightInGrams / 1000) * item.costPerUnit;
       } else {
         materialCost = totalNeeded * item.costPerUnit;
