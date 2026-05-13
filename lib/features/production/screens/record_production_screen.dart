@@ -6,7 +6,6 @@ import '../../../../models/size_variant_model.dart';
 import '../../../../models/production_log_model.dart';
 import '../../../../services/product_service.dart';
 import '../../../../services/production_service.dart';
-
 class RecordProductionScreen extends StatefulWidget {
   const RecordProductionScreen({super.key});
 
