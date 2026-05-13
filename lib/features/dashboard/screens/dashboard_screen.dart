@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_theme.dart';
-import '../../../../models/material_model.dart';
-import '../../../../models/product_model.dart';
-import '../../../../models/size_variant_model.dart';
-import '../../../../services/material_service.dart';
-import '../../../../services/product_service.dart';
-import '../../../../services/simulation_service.dart';
+import 'package:family_garment/core/theme/app_theme.dart';
+import 'package:family_garment/models/material_model.dart';
+import 'package:family_garment/models/product_model.dart';
+import 'package:family_garment/models/size_variant_model.dart';
+import 'package:family_garment/services/material_service.dart';
+import 'package:family_garment/services/product_service.dart';
+import 'package:family_garment/services/simulation_service.dart';
 import 'result_screen.dart';
 
 class DashboardScreen extends StatefulWidget {

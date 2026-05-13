@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_theme.dart';
-import '../../../../core/utils/currency_formatter.dart';
-import '../../../../models/material_model.dart';
-import '../../../../models/product_model.dart';
-import '../../../../models/size_variant_model.dart';
-import '../../../../services/simulation_service.dart';
+import 'package:family_garment/core/theme/app_theme.dart';
+import 'package:family_garment/core/utils/currency_formatter.dart';
+import 'package:family_garment/models/material_model.dart';
+import 'package:family_garment/models/product_model.dart';
+import 'package:family_garment/models/size_variant_model.dart';
+import 'package:family_garment/services/simulation_service.dart';
 
 class ResultScreen extends StatefulWidget {
   final MaterialModel material;
@@ -36,7 +36,6 @@ class _ResultScreenState extends State<ResultScreen>
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
 
-  // To show material names in the check
   Map<int, String> _materialNames = {};
 
   @override
@@ -64,7 +63,6 @@ class _ResultScreenState extends State<ResultScreen>
         sizeVariantId: widget.sizeVariant.id!,
       );
 
-      // Load material names for display
       final names = <int, String>{};
       for (var id in result.materialsNeeded.keys) {
         names[id] = 'Material #$id';
@@ -124,19 +122,12 @@ class _ResultScreenState extends State<ResultScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Main Result Card
               _buildMainResultCard(result),
               const SizedBox(height: 20),
-
-              // Materials Check
               _buildMaterialsCheckCard(result),
               const SizedBox(height: 20),
-
-              // Money Breakdown
               _buildMoneyCard(result),
               const SizedBox(height: 20),
-
-              // Go to Record Button
               SizedBox(
                 height: 56,
                 child: ElevatedButton.icon(
@@ -254,7 +245,8 @@ class _ResultScreenState extends State<ResultScreen>
                 final materialId = entry.key;
                 final needed = result.materialsNeeded[materialId] ?? 0;
                 final isEnough = entry.value;
-                final name = _materialNames[materialId] ?? 'Material #$materialId';
+                final name =
+                    _materialNames[materialId] ?? 'Material #$materialId';
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),
@@ -308,6 +300,7 @@ class _ResultScreenState extends State<ResultScreen>
         ? result.totalCost / result.maxPieces
         : 0.0;
     final profitPerPiece = revenuePerPiece - costPerPiece;
+    final totalPieces = result.maxPieces;
 
     return Card(
       child: Padding(
@@ -376,8 +369,8 @@ class _ResultScreenState extends State<ResultScreen>
             const SizedBox(height: 16),
 
             // Total for Batch
-            const Text('TOTAL (${result.maxPieces} pieces)',
-                style: TextStyle(
+            Text('TOTAL ($totalPieces pieces)',
+                style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textSecondary,
