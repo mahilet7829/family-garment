@@ -160,10 +160,8 @@ class _ProductBuilderScreenState extends State<ProductBuilderScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.navy,
               foregroundColor: AppColors.white,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           ),
         ],
@@ -184,7 +182,6 @@ class _ProductBuilderScreenState extends State<ProductBuilderScreen> {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              // Product Image
               Container(
                 width: 56,
                 height: 56,
@@ -206,27 +203,23 @@ class _ProductBuilderScreenState extends State<ProductBuilderScreen> {
                     : null,
               ),
               const SizedBox(width: 14),
-              // Info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(product.name,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 15)),
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
                     const SizedBox(height: 4),
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
                             color: AppColors.navy.withOpacity(0.08),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(product.category,
-                              style: const TextStyle(
-                                  fontSize: 11, color: AppColors.navy)),
+                              style: const TextStyle(fontSize: 11, color: AppColors.navy)),
                         ),
                         const SizedBox(width: 8),
                         Text(
@@ -241,15 +234,12 @@ class _ProductBuilderScreenState extends State<ProductBuilderScreen> {
                   ],
                 ),
               ),
-              // Actions
               IconButton(
-                icon: const Icon(Icons.edit_outlined,
-                    size: 20, color: AppColors.navy),
+                icon: const Icon(Icons.edit_outlined, size: 20, color: AppColors.navy),
                 onPressed: () => _showEditDialog(product),
               ),
               IconButton(
-                icon: const Icon(Icons.delete_outline,
-                    size: 20, color: AppColors.error),
+                icon: const Icon(Icons.delete_outline, size: 20, color: AppColors.error),
                 onPressed: () => _deleteProduct(product),
               ),
             ],
@@ -310,8 +300,7 @@ class _AddProductSheetState extends State<AddProductSheet> {
 
   Future<void> _loadExistingSizes() async {
     if (_isEditing) {
-      final variants =
-          await ProductService().getSizeVariants(widget.existing!.id!);
+      final variants = await ProductService().getSizeVariants(widget.existing!.id!);
       for (var v in variants) {
         _sizeControllers.add(TextEditingController(text: v.sizeName));
       }
@@ -321,8 +310,7 @@ class _AddProductSheetState extends State<AddProductSheet> {
 
   Future<void> _loadExistingRecipe() async {
     if (_isEditing) {
-      final items =
-          await ProductService().getRecipeItems(widget.existing!.id!);
+      final items = await ProductService().getRecipeItems(widget.existing!.id!);
       for (var item in items) {
         final material = widget.allMaterials.firstWhere(
           (m) => m.id == item.materialId,
@@ -359,9 +347,7 @@ class _AddProductSheetState extends State<AddProductSheet> {
   void _addRecipeItem() {
     setState(() {
       _recipeItems.add(_RecipeItemEntry(
-        material: widget.allMaterials.isNotEmpty
-            ? widget.allMaterials.first
-            : null,
+        material: widget.allMaterials.isNotEmpty ? widget.allMaterials.first : null,
         quantityController: TextEditingController(text: '1'),
       ));
     });
@@ -414,13 +400,11 @@ class _AddProductSheetState extends State<AddProductSheet> {
 
       List<String> imagePaths = [];
       if (_image != null) {
-        final appDir =
-            Directory('${Directory.current.path}/app_documents/images');
+        final appDir = Directory('${Directory.current.path}/app_documents/images');
         if (!await appDir.exists()) {
           await appDir.create(recursive: true);
         }
-        final fileName =
-            'product_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final fileName = 'product_${DateTime.now().millisecondsSinceEpoch}.jpg';
         final savedImage = await _image!.copy('${appDir.path}/$fileName');
         imagePaths.add(savedImage.path);
       } else if (_isEditing && widget.existing!.imagePaths.isNotEmpty) {
@@ -489,13 +473,10 @@ class _AddProductSheetState extends State<AddProductSheet> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_isEditing
-                ? '✅ Product updated!'
-                : '✅ Product created!'),
+            content: Text(_isEditing ? '✅ Product updated!' : '✅ Product created!'),
             backgroundColor: AppColors.success,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
@@ -524,8 +505,7 @@ class _AddProductSheetState extends State<AddProductSheet> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Padding(
-        padding: EdgeInsets.only(
-            left: 20, right: 20, top: 16, bottom: bottomPadding + 16),
+        padding: EdgeInsets.only(left: 20, right: 20, top: 16, bottom: bottomPadding + 16),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -534,8 +514,7 @@ class _AddProductSheetState extends State<AddProductSheet> {
               children: [
                 Center(
                   child: Container(
-                    width: 40,
-                    height: 4,
+                    width: 40, height: 4,
                     decoration: BoxDecoration(
                       color: AppColors.cardBorder,
                       borderRadius: BorderRadius.circular(2),
@@ -544,18 +523,14 @@ class _AddProductSheetState extends State<AddProductSheet> {
                 ),
                 const SizedBox(height: 16),
                 Text(_isEditing ? 'EDIT PRODUCT' : 'CREATE PRODUCT',
-                    style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.navy)),
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.navy)),
                 const SizedBox(height: 20),
                 _buildLabel('Product Name'),
                 const SizedBox(height: 6),
                 TextFormField(
                   controller: _nameController,
                   decoration: _inputDecoration('e.g. Classic Boxer'),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
                 ),
                 const SizedBox(height: 16),
                 _buildLabel('Category'),
@@ -563,15 +538,10 @@ class _AddProductSheetState extends State<AddProductSheet> {
                 DropdownButtonFormField<String>(
                   value: _category,
                   decoration: _inputDecoration(null),
-                  items: [
-                    "Men's Wear",
-                    "Women's Wear",
-                    "Kids Wear",
-                    "Infants"
-                  ].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                  onChanged: (v) {
-                    if (v != null) setState(() => _category = v);
-                  },
+                  items: ["Men's Wear", "Women's Wear", "Kids Wear", "Infants"]
+                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      .toList(),
+                  onChanged: (v) { if (v != null) setState(() => _category = v); },
                 ),
                 const SizedBox(height: 16),
                 _buildLabel('Selling Price (Br)'),
@@ -582,8 +552,7 @@ class _AddProductSheetState extends State<AddProductSheet> {
                   keyboardType: TextInputType.number,
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) return 'Required';
-                    if (double.tryParse(v.trim()) == null)
-                      return 'Enter a valid number';
+                    if (double.tryParse(v.trim()) == null) return 'Enter a valid number';
                     return null;
                   },
                 ),
@@ -593,30 +562,23 @@ class _AddProductSheetState extends State<AddProductSheet> {
                 GestureDetector(
                   onTap: _pickImage,
                   child: Container(
-                    width: double.infinity,
-                    height: 180,
+                    width: double.infinity, height: 180,
                     decoration: BoxDecoration(
                       color: AppColors.background,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                          color: AppColors.cardBorder, width: 1.5),
+                      border: Border.all(color: AppColors.cardBorder, width: 1.5),
                     ),
                     child: _image != null
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(14),
-                            child:
-                                Image.file(_image!, fit: BoxFit.cover),
+                            child: Image.file(_image!, fit: BoxFit.cover),
                           )
                         : const Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.add_a_photo_outlined,
-                                  color: AppColors.textSecondary,
-                                  size: 36),
+                              Icon(Icons.add_a_photo_outlined, color: AppColors.textSecondary, size: 36),
                               SizedBox(height: 8),
-                              Text('Tap to Add Photo',
-                                  style: TextStyle(
-                                      color: AppColors.textSecondary)),
+                              Text('Tap to Add Photo', style: TextStyle(color: AppColors.textSecondary)),
                             ],
                           ),
                   ),
@@ -625,18 +587,18 @@ class _AddProductSheetState extends State<AddProductSheet> {
                   const SizedBox(height: 8),
                   TextButton.icon(
                     onPressed: _removeImage,
-                    icon: const Icon(Icons.delete_outline,
-                        color: AppColors.error, size: 16),
-                    label: const Text('Remove Image',
-                        style: TextStyle(color: AppColors.error)),
+                    icon: const Icon(Icons.delete_outline, color: AppColors.error, size: 16),
+                    label: const Text('Remove Image', style: TextStyle(color: AppColors.error)),
                   ),
                 ],
                 const SizedBox(height: 20),
+
+                // ===== RECIPE SECTION =====
                 _buildSectionTitle('RECIPE (Materials Needed)',
                     action: TextButton.icon(
                       onPressed: _addRecipeItem,
-                      icon: const Icon(Icons.add_circle_outline, size: 18),
-                      label: const Text('Add'),
+                      icon: const Icon(Icons.add_circle_outline, size: 18, color: AppColors.navy),
+                      label: const Text('Add', style: TextStyle(color: AppColors.navy)),
                     )),
                 const SizedBox(height: 8),
                 if (_recipeItems.isEmpty)
@@ -648,39 +610,36 @@ class _AddProductSheetState extends State<AddProductSheet> {
                     ),
                     child: const Row(
                       children: [
-                        Icon(Icons.info_outline,
-                            color: AppColors.textSecondary, size: 18),
+                        Icon(Icons.info_outline, color: AppColors.textSecondary, size: 18),
                         SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             'Add materials from your inventory to build the recipe.',
-                            style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 13),
+                            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
                           ),
                         ),
                       ],
                     ),
                   ),
                 ..._recipeItems.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final item = entry.value;
-                  return _buildRecipeCard(index, item);
+                  return _buildRecipeCard(entry.key, entry.value);
                 }),
                 const SizedBox(height: 20),
+
+                // ===== SIZES SECTION =====
                 _buildSectionTitle('SIZES',
                     action: TextButton.icon(
                       onPressed: _addSize,
-                      icon: const Icon(Icons.add_circle_outline, size: 18),
-                      label: const Text('Add'),
+                      icon: const Icon(Icons.add_circle_outline, size: 18, color: AppColors.navy),
+                      label: const Text('Add', style: TextStyle(color: AppColors.navy)),
                     )),
                 const SizedBox(height: 8),
                 ..._sizeControllers.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final controller = entry.value;
-                  return _buildSizeCard(index, controller);
+                  return _buildSizeCard(entry.key, entry.value);
                 }),
                 const SizedBox(height: 24),
+
+                // ===== SAVE BUTTON =====
                 SizedBox(
                   height: 52,
                   child: ElevatedButton(
@@ -688,24 +647,17 @@ class _AddProductSheetState extends State<AddProductSheet> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.success,
                       foregroundColor: AppColors.white,
-                      disabledBackgroundColor:
-                          AppColors.success.withOpacity(0.5),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
+                      disabledBackgroundColor: AppColors.success.withOpacity(0.5),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
                     child: _isSaving
                         ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.white),
+                            width: 22, height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.white),
                           )
                         : Text(
                             _isEditing ? 'UPDATE PRODUCT' : 'CREATE PRODUCT',
-                            style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700),
+                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                           ),
                   ),
                 ),
@@ -719,157 +671,185 @@ class _AddProductSheetState extends State<AddProductSheet> {
   }
 
   Widget _buildRecipeCard(int index, _RecipeItemEntry item) {
-    return Card(
-      elevation: 0.5,
-      margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<int>(
-                    value: item.material?.id,
-                    decoration: _inputDecoration('Select material'),
-                    isDense: true,
-                    items: widget.allMaterials.map((m) {
-                      return DropdownMenuItem(
-                        value: m.id,
-                        child: Text(
-                          '${m.name}${m.isFabric && m.gsm != null ? " (${m.gsm!.toInt()} GSM)" : ""}',
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (id) {
-                      if (id != null) {
-                        setState(() {
-                          item.material = widget.allMaterials
-                              .firstWhere((m) => m.id == id);
-                        });
-                      }
-                    },
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.cardBorder),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.navy.withOpacity(0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.cardBorder),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButtonFormField<int>(
+                      value: item.material?.id,
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                        isDense: true,
+                      ),
+                      isExpanded: true,
+                      dropdownColor: AppColors.white,
+                      style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w500),
+                      hint: Text('Select material',
+                          style: TextStyle(
+                              color: AppColors.textSecondary.withOpacity(0.6),
+                              fontSize: 14)),
+                      items: widget.allMaterials.map((m) {
+                        return DropdownMenuItem(
+                          value: m.id,
+                          child: Text(
+                            '${m.name}${m.isFabric && m.gsm != null ? " (${m.gsm!.toInt()} GSM)" : ""}',
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (id) {
+                        if (id != null) {
+                          setState(() {
+                            item.material = widget.allMaterials.firstWhere((m) => m.id == id);
+                          });
+                        }
+                      },
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () => _removeRecipeItem(index),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.error.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
+              ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () => _removeRecipeItem(index),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.close_rounded, color: AppColors.error, size: 18),
+                ),
+              ),
+            ],
+          ),
+          if (item.material != null) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Text('Qty per piece:  ',
+                    style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                SizedBox(
+                  width: 110,
+                  child: TextFormField(
+                    controller: item.quantityController,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: AppColors.cardBorder)),
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: AppColors.cardBorder)),
+                      focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: AppColors.navy, width: 2)),
+                      labelText: item.material!.unit,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     ),
-                    child: const Icon(Icons.close,
-                        color: AppColors.error, size: 18),
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(fontSize: 14),
                   ),
                 ),
               ],
             ),
-            if (item.material != null) ...[
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  const Text('Qty per piece:',
-                      style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary)),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: 100,
-                    child: TextFormField(
-                      controller: item.quantityController,
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                        labelText: item.material!.unit,
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 10),
-                      ),
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                  ),
-                ],
-              ),
-            ],
           ],
-        ),
+        ],
       ),
     );
   }
 
   Widget _buildSizeCard(int index, TextEditingController controller) {
-    return Card(
-      elevation: 0.5,
-      margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Row(
-          children: [
-            Expanded(
-              child: TextFormField(
-                controller: controller,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                  labelText: 'Size Name',
-                  hintText: 'Small, Medium, Large, XL',
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 10),
-                ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.cardBorder),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.navy.withOpacity(0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextFormField(
+              controller: controller,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                labelText: 'Size Name',
+                hintText: 'Small, Medium, Large, XL',
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
             ),
-            const SizedBox(width: 8),
-            if (_sizeControllers.length > 1 || _isEditing)
-              GestureDetector(
-                onTap: () => _removeSize(index),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.error.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.close,
-                      color: AppColors.error, size: 18),
+          ),
+          const SizedBox(width: 8),
+          if (_sizeControllers.length > 1 || _isEditing)
+            GestureDetector(
+              onTap: () => _removeSize(index),
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
                 ),
+                child: const Icon(Icons.close_rounded, color: AppColors.error, size: 18),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
 
   Widget _buildLabel(String text) {
     return Text(text,
-        style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary));
+        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary));
   }
 
-  Widget _buildSectionTitle(String text,
-      {bool optional = false, Widget? action}) {
+  Widget _buildSectionTitle(String text, {bool optional = false, Widget? action}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Row(
           children: [
             Text(text,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                    color: AppColors.navy)),
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.navy)),
             if (optional)
               const Text(' (optional)',
-                  style: TextStyle(
-                      fontSize: 12, color: AppColors.textSecondary)),
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
           ],
         ),
         if (action != null) action,
@@ -880,8 +860,7 @@ class _AddProductSheetState extends State<AddProductSheet> {
   InputDecoration _inputDecoration(String? hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle:
-          TextStyle(color: AppColors.textSecondary.withOpacity(0.5)),
+      hintStyle: TextStyle(color: AppColors.textSecondary.withOpacity(0.5)),
       border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.cardBorder)),
@@ -891,8 +870,7 @@ class _AddProductSheetState extends State<AddProductSheet> {
       focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.navy, width: 2)),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );
   }
 
@@ -914,8 +892,5 @@ class _RecipeItemEntry {
   MaterialModel? material;
   final TextEditingController quantityController;
 
-  _RecipeItemEntry({
-    this.material,
-    required this.quantityController,
-  });
+  _RecipeItemEntry({this.material, required this.quantityController});
 }

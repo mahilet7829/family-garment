@@ -106,7 +106,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
       ),
       body: Column(
         children: [
-          // Filter chips
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: SingleChildScrollView(
@@ -124,49 +123,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
               ),
             ),
           ),
-          // Material list
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _materials.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.inventory_2_outlined,
-                                size: 80,
-                                color: AppColors.textSecondary
-                                    .withOpacity(0.4)),
-                            const SizedBox(height: 16),
-                            Text('No materials found',
-                                style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.textSecondary
-                                        .withOpacity(0.7))),
-                            const SizedBox(height: 8),
-                            Text(
-                                _filterCategory != null
-                                    ? 'Try a different filter'
-                                    : 'Tap + to add your first material',
-                                style: const TextStyle(
-                                    color: AppColors.textSecondary)),
-                            const SizedBox(height: 20),
-                            if (_filterCategory == null)
-                              ElevatedButton.icon(
-                                onPressed: _showAddMaterialDialog,
-                                icon: const Icon(Icons.add),
-                                label: const Text('ADD MATERIAL'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.navy,
-                                  foregroundColor: AppColors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 24, vertical: 14),
-                                ),
-                              ),
-                          ],
-                        ),
-                      )
+                    ? _buildEmptyState()
                     : ListView.builder(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 8),
@@ -175,6 +136,44 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             _materialListTile(_materials[i]),
                       ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.inventory_2_outlined,
+              size: 80,
+              color: AppColors.textSecondary.withOpacity(0.4)),
+          const SizedBox(height: 16),
+          Text('No materials found',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textSecondary.withOpacity(0.7))),
+          const SizedBox(height: 8),
+          Text(
+              _filterCategory != null
+                  ? 'Try a different filter'
+                  : 'Tap + to add your first material',
+              style: const TextStyle(color: AppColors.textSecondary)),
+          const SizedBox(height: 20),
+          if (_filterCategory == null)
+            ElevatedButton.icon(
+              onPressed: _showAddMaterialDialog,
+              icon: const Icon(Icons.add),
+              label: const Text('ADD MATERIAL'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.navy,
+                foregroundColor: AppColors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+              ),
+            ),
         ],
       ),
     );
@@ -220,7 +219,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              // Image / Icon
               Container(
                 width: 50,
                 height: 50,
@@ -241,7 +239,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     : null,
               ),
               const SizedBox(width: 14),
-              // Name & Stock
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -271,7 +268,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   ],
                 ),
               ),
-              // GSM Badge
               if (material.isFabric && material.gsm != null)
                 Container(
                   padding:
@@ -348,9 +344,11 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Delete Material'),
-        content: Text('Delete "${_material.name}"?\n\nThis cannot be undone.'),
+        content:
+            Text('Delete "${_material.name}"?\n\nThis cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -406,7 +404,6 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Image
             Container(
               width: double.infinity,
               height: 200,
@@ -447,8 +444,6 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
                     ),
             ),
             const SizedBox(height: 20),
-
-            // Stock Status
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -476,8 +471,6 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
               ),
             ),
             const SizedBox(height: 20),
-
-            // Details Card
             Card(
               elevation: 1,
               shape: RoundedRectangleBorder(
@@ -509,20 +502,16 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
                       'Br ${(_material.currentStock * _material.costPerUnit).toStringAsFixed(2)}',
                     ),
                     _divider(),
-                    _detailRow(
-                        'Added',
+                    _detailRow('Added',
                         _material.createdAt.toString().substring(0, 10)),
                     _divider(),
-                    _detailRow(
-                        'Updated',
+                    _detailRow('Updated',
                         _material.updatedAt.toString().substring(0, 10)),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 20),
-
-            // Action Buttons
             Row(
               children: [
                 Expanded(
@@ -656,8 +645,8 @@ class _MaterialFormSheetState extends State<MaterialFormSheet> {
     try {
       String? imagePath;
       if (_image != null) {
-        final appDir = Directory(
-            '${Directory.current.path}/app_documents/images');
+        final appDir =
+            Directory('${Directory.current.path}/app_documents/images');
         if (!await appDir.exists()) {
           await appDir.create(recursive: true);
         }
@@ -736,7 +725,6 @@ class _MaterialFormSheetState extends State<MaterialFormSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Handle
                 Center(
                   child: Container(
                     width: 40,
@@ -754,8 +742,6 @@ class _MaterialFormSheetState extends State<MaterialFormSheet> {
                         fontWeight: FontWeight.bold,
                         color: AppColors.navy)),
                 const SizedBox(height: 20),
-
-                // Category
                 _buildLabel('Category'),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
@@ -776,8 +762,6 @@ class _MaterialFormSheetState extends State<MaterialFormSheet> {
                   },
                 ),
                 const SizedBox(height: 16),
-
-                // Name
                 _buildLabel('Material Name'),
                 const SizedBox(height: 6),
                 TextFormField(
@@ -787,8 +771,6 @@ class _MaterialFormSheetState extends State<MaterialFormSheet> {
                       (v == null || v.trim().isEmpty) ? 'Required' : null,
                 ),
                 const SizedBox(height: 16),
-
-                // GSM (only Fabric)
                 if (_category == 'Fabric') ...[
                   _buildLabel('GSM (grams per square meter)'),
                   const SizedBox(height: 6),
@@ -799,8 +781,6 @@ class _MaterialFormSheetState extends State<MaterialFormSheet> {
                   ),
                   const SizedBox(height: 16),
                 ],
-
-                // Stock
                 _buildLabel('Stock Quantity'),
                 const SizedBox(height: 6),
                 Row(
@@ -811,7 +791,9 @@ class _MaterialFormSheetState extends State<MaterialFormSheet> {
                         decoration: _inputDecoration(hint: '0'),
                         keyboardType: TextInputType.number,
                         validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? 'Required' : null,
+                            (v == null || v.trim().isEmpty)
+                                ? 'Required'
+                                : null,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -830,21 +812,17 @@ class _MaterialFormSheetState extends State<MaterialFormSheet> {
                   ],
                 ),
                 const SizedBox(height: 16),
-
-                // Cost
                 _buildLabel('Cost per $_unit (Br)'),
                 const SizedBox(height: 6),
                 TextFormField(
                   controller: _costController,
                   decoration: _inputDecoration(hint: '0.00'),
-                  keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
                   validator: (v) =>
                       (v == null || v.trim().isEmpty) ? 'Required' : null,
                 ),
                 const SizedBox(height: 20),
-
-                // Image
                 _buildLabel('Material Image (optional)'),
                 const SizedBox(height: 8),
                 Row(
@@ -900,8 +878,6 @@ class _MaterialFormSheetState extends State<MaterialFormSheet> {
                   ],
                 ),
                 const SizedBox(height: 24),
-
-                // Save Button
                 SizedBox(
                   height: 52,
                   child: ElevatedButton(
@@ -909,7 +885,8 @@ class _MaterialFormSheetState extends State<MaterialFormSheet> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.navy,
                       foregroundColor: AppColors.white,
-                      disabledBackgroundColor: AppColors.navy.withOpacity(0.6),
+                      disabledBackgroundColor:
+                          AppColors.navy.withOpacity(0.6),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14)),
                     ),
@@ -921,9 +898,12 @@ class _MaterialFormSheetState extends State<MaterialFormSheet> {
                                 strokeWidth: 2, color: AppColors.white),
                           )
                         : Text(
-                            _isEditing ? 'UPDATE MATERIAL' : 'SAVE MATERIAL',
+                            _isEditing
+                                ? 'UPDATE MATERIAL'
+                                : 'SAVE MATERIAL',
                             style: const TextStyle(
-                                fontSize: 15, fontWeight: FontWeight.w600),
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600),
                           ),
                   ),
                 ),
@@ -947,7 +927,8 @@ class _MaterialFormSheetState extends State<MaterialFormSheet> {
   InputDecoration _inputDecoration({String? hint}) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(color: AppColors.textSecondary.withOpacity(0.5)),
+      hintStyle:
+          TextStyle(color: AppColors.textSecondary.withOpacity(0.5)),
       border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.cardBorder)),
