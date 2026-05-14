@@ -1,3 +1,4 @@
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
@@ -129,11 +130,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 : _materials.isEmpty
                     ? _buildEmptyState()
                     : ListView.builder(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         itemCount: _materials.length,
-                        itemBuilder: (_, i) =>
-                            _materialListTile(_materials[i]),
+                        itemBuilder: (_, i) => _materialListTile(_materials[i]),
                       ),
           ),
         ],
@@ -146,20 +145,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.inventory_2_outlined,
-              size: 80,
-              color: AppColors.textSecondary.withOpacity(0.4)),
+          Icon(Icons.inventory_2_outlined, size: 80, color: AppColors.textSecondary.withOpacity(0.4)),
           const SizedBox(height: 16),
           Text('No materials found',
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textSecondary.withOpacity(0.7))),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: AppColors.textSecondary.withOpacity(0.7))),
           const SizedBox(height: 8),
-          Text(
-              _filterCategory != null
-                  ? 'Try a different filter'
-                  : 'Tap + to add your first material',
+          Text(_filterCategory != null ? 'Try a different filter' : 'Tap + to add your first material',
               style: const TextStyle(color: AppColors.textSecondary)),
           const SizedBox(height: 20),
           if (_filterCategory == null)
@@ -170,8 +161,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.navy,
                 foregroundColor: AppColors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
               ),
             ),
         ],
@@ -183,9 +173,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final isSelected = _filterCategory == category;
     return FilterChip(
       label: Text(label,
-          style: TextStyle(
-              color: isSelected ? AppColors.white : AppColors.navy,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal)),
+          style: TextStyle(color: isSelected ? AppColors.white : AppColors.navy, fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal)),
       selected: isSelected,
       onSelected: (selected) {
         setState(() => _filterCategory = selected ? category : null);
@@ -194,8 +182,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       backgroundColor: AppColors.white,
       selectedColor: AppColors.navy,
       checkmarkColor: AppColors.white,
-      side: BorderSide(
-          color: isSelected ? AppColors.navy : AppColors.cardBorder),
+      side: BorderSide(color: isSelected ? AppColors.navy : AppColors.cardBorder),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     );
   }
@@ -220,21 +207,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
           child: Row(
             children: [
               Container(
-                width: 50,
-                height: 50,
+                width: 50, height: 50,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
                   color: stockColor.withOpacity(0.1),
-                  image: material.imagePath != null &&
-                          File(material.imagePath!).existsSync()
-                      ? DecorationImage(
-                          image: FileImage(File(material.imagePath!)),
-                          fit: BoxFit.cover,
-                        )
+                  image: material.imagePath != null && File(material.imagePath!).existsSync()
+                      ? DecorationImage(image: FileImage(File(material.imagePath!)), fit: BoxFit.cover)
                       : null,
                 ),
-                child: material.imagePath == null ||
-                        !File(material.imagePath!).existsSync()
+                child: material.imagePath == null || !File(material.imagePath!).existsSync()
                     ? Icon(Icons.inventory_2, color: stockColor, size: 24)
                     : null,
               ),
@@ -243,26 +224,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(material.name,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 15)),
+                    Text(material.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: stockColor,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
+                        Container(width: 8, height: 8, decoration: BoxDecoration(color: stockColor, shape: BoxShape.circle)),
                         const SizedBox(width: 6),
-                        Text(
-                          material.stockDisplay,
-                          style: TextStyle(
-                              fontSize: 13, color: AppColors.textSecondary),
-                        ),
+                        Text(material.stockDisplay, style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
                       ],
                     ),
                   ],
@@ -270,21 +238,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
               ),
               if (material.isFabric && material.gsm != null)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: AppColors.navy.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text('${material.gsm!.toInt()} GSM',
-                      style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.navy)),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(color: AppColors.navy.withOpacity(0.08), borderRadius: BorderRadius.circular(10)),
+                  child: Text('${material.gsm!.toInt()} GSM', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.navy)),
                 ),
               const SizedBox(width: 4),
-              Icon(Icons.chevron_right,
-                  color: AppColors.textSecondary.withOpacity(0.5), size: 22),
+              Icon(Icons.chevron_right, color: AppColors.textSecondary.withOpacity(0.5), size: 22),
             ],
           ),
         ),
@@ -299,12 +258,7 @@ class MaterialDetailScreen extends StatefulWidget {
   final VoidCallback onUpdated;
   final Function(MaterialModel) onEdit;
 
-  const MaterialDetailScreen({
-    super.key,
-    required this.material,
-    required this.onUpdated,
-    required this.onEdit,
-  });
+  const MaterialDetailScreen({super.key, required this.material, required this.onUpdated, required this.onEdit});
 
   @override
   State<MaterialDetailScreen> createState() => _MaterialDetailScreenState();
@@ -333,10 +287,7 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => MaterialFormSheet(
-        existing: _material,
-        onSaved: _refreshMaterial,
-      ),
+      builder: (_) => MaterialFormSheet(existing: _material, onSaved: _refreshMaterial),
     ).then((_) => _refreshMaterial());
   }
 
@@ -344,21 +295,14 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Delete Material'),
-        content:
-            Text('Delete "${_material.name}"?\n\nThis cannot be undone.'),
+        content: Text('Delete "${_material.name}"?\n\nThis cannot be undone.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error,
-                foregroundColor: AppColors.white),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: AppColors.white),
             child: const Text('Delete'),
           ),
         ],
@@ -387,16 +331,8 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
         foregroundColor: AppColors.white,
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: _showEditDialog,
-            tooltip: 'Edit',
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            onPressed: _deleteMaterial,
-            tooltip: 'Delete',
-          ),
+          IconButton(icon: const Icon(Icons.edit_outlined), onPressed: _showEditDialog, tooltip: 'Edit'),
+          IconButton(icon: const Icon(Icons.delete_outline), onPressed: _deleteMaterial, tooltip: 'Delete'),
         ],
       ),
       body: SingleChildScrollView(
@@ -405,108 +341,60 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Container(
-              width: double.infinity,
-              height: 200,
+              width: double.infinity, height: 200,
               decoration: BoxDecoration(
                 color: AppColors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: AppColors.cardBorder),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.navy.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                boxShadow: [BoxShadow(color: AppColors.navy.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
               ),
-              child: _material.imagePath != null &&
-                      File(_material.imagePath!).existsSync()
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Image.file(
-                        File(_material.imagePath!),
-                        fit: BoxFit.cover,
-                      ),
-                    )
+              child: _material.imagePath != null && File(_material.imagePath!).existsSync()
+                  ? ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.file(File(_material.imagePath!), fit: BoxFit.cover))
                   : Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.inventory_2,
-                            size: 56,
-                            color:
-                                AppColors.textSecondary.withOpacity(0.3)),
+                        Icon(Icons.inventory_2, size: 56, color: AppColors.textSecondary.withOpacity(0.3)),
                         const SizedBox(height: 8),
-                        Text('No Image',
-                            style: TextStyle(
-                                color: AppColors.textSecondary
-                                    .withOpacity(0.5))),
+                        Text('No Image', style: TextStyle(color: AppColors.textSecondary.withOpacity(0.5))),
                       ],
                     ),
             ),
             const SizedBox(height: 20),
             Container(
               padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: stockColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: stockColor.withOpacity(0.3)),
-              ),
+              decoration: BoxDecoration(color: stockColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12), border: Border.all(color: stockColor.withOpacity(0.3))),
               child: Row(
                 children: [
                   Icon(Icons.circle, color: stockColor, size: 12),
                   const SizedBox(width: 8),
                   Text(
-                    _material.currentStock <= 0
-                        ? 'Out of Stock'
-                        : _material.currentStock < 5
-                            ? 'Low Stock'
-                            : 'In Stock',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w600, color: stockColor),
+                    _material.currentStock <= 0 ? 'Out of Stock' : _material.currentStock < 5 ? 'Low Stock' : 'In Stock',
+                    style: TextStyle(fontWeight: FontWeight.w600, color: stockColor),
                   ),
                   const Spacer(),
-                  Text(_material.stockDisplay,
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  Text(_material.stockDisplay, style: const TextStyle(fontWeight: FontWeight.w600)),
                 ],
               ),
             ),
             const SizedBox(height: 20),
             Card(
               elevation: 1,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
-                    _detailRow('Name', _material.name),
-                    _divider(),
+                    _detailRow('Name', _material.name), _divider(),
                     _detailRow('Category', _material.category),
                     if (_material.isFabric && _material.gsm != null) ...[
-                      _divider(),
-                      _detailRow('GSM', '${_material.gsm!.toInt()} g/m²'),
-                      _divider(),
-                      _detailRow(
-                          'Usable Area',
-                          '${(_material.currentStock * 1000 / _material.gsm!).toStringAsFixed(2)} m²'),
+                      _divider(), _detailRow('GSM', '${_material.gsm!.toInt()} g/m²'),
+                      _divider(), _detailRow('Usable Area', '${(_material.currentStock * 1000 / _material.gsm!).toStringAsFixed(2)} m²'),
                     ],
-                    _divider(),
-                    _detailRow('Unit', _material.unit),
-                    _divider(),
-                    _detailRow(
-                        'Cost',
-                        'Br ${_material.costPerUnit.toStringAsFixed(2)} / ${_material.unit}'),
-                    _divider(),
-                    _detailRow(
-                      'Total Value',
-                      'Br ${(_material.currentStock * _material.costPerUnit).toStringAsFixed(2)}',
-                    ),
-                    _divider(),
-                    _detailRow('Added',
-                        _material.createdAt.toString().substring(0, 10)),
-                    _divider(),
-                    _detailRow('Updated',
-                        _material.updatedAt.toString().substring(0, 10)),
+                    _divider(), _detailRow('Unit', _material.unit),
+                    _divider(), _detailRow('Cost', 'Br ${_material.costPerUnit.toStringAsFixed(2)} / ${_material.unit}'),
+                    _divider(), _detailRow('Total Value', 'Br ${(_material.currentStock * _material.costPerUnit).toStringAsFixed(2)}'),
+                    _divider(), _detailRow('Added', _material.createdAt.toString().substring(0, 10)),
+                    _divider(), _detailRow('Updated', _material.updatedAt.toString().substring(0, 10)),
                   ],
                 ),
               ),
@@ -519,13 +407,7 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
                     onPressed: _showEditDialog,
                     icon: const Icon(Icons.edit_outlined, size: 20),
                     label: const Text('EDIT'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.navy,
-                      foregroundColor: AppColors.white,
-                      minimumSize: const Size(0, 52),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
-                    ),
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.navy, foregroundColor: AppColors.white, minimumSize: const Size(0, 52), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -534,13 +416,7 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
                     onPressed: _deleteMaterial,
                     icon: const Icon(Icons.delete_outline, size: 20),
                     label: const Text('DELETE'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.error,
-                      foregroundColor: AppColors.white,
-                      minimumSize: const Size(0, 52),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
-                    ),
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: AppColors.white, minimumSize: const Size(0, 52), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
                   ),
                 ),
               ],
@@ -558,23 +434,14 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: const TextStyle(
-                  color: AppColors.textSecondary, fontSize: 14)),
-          Flexible(
-            child: Text(value,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w600, fontSize: 14),
-                textAlign: TextAlign.right),
-          ),
+          Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+          Flexible(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14), textAlign: TextAlign.right)),
         ],
       ),
     );
   }
 
-  Widget _divider() {
-    return Divider(height: 1, color: AppColors.cardBorder.withOpacity(0.5));
-  }
+  Widget _divider() => Divider(height: 1, color: AppColors.cardBorder.withOpacity(0.5));
 }
 
 // ========== ADD/EDIT MATERIAL FORM ==========
@@ -621,11 +488,7 @@ class _MaterialFormSheetState extends State<MaterialFormSheet> {
   Future<void> _pickImage() async {
     try {
       final picker = ImagePicker();
-      final picked = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 800,
-        maxHeight: 800,
-      );
+      final picked = await picker.pickImage(source: ImageSource.gallery, maxWidth: 800, maxHeight: 800);
       if (picked != null && mounted) {
         setState(() => _image = File(picked.path));
       }
@@ -640,18 +503,30 @@ class _MaterialFormSheetState extends State<MaterialFormSheet> {
     if (!_formKey.currentState!.validate()) return;
     if (_isSaving) return;
 
+    final name = _nameController.text.trim();
+    final stockText = _stockController.text.trim();
+    final costText = _costController.text.trim();
+
+    if (name.isEmpty) { _showError('Please enter a material name'); return; }
+    if (stockText.isEmpty) { _showError('Please enter stock quantity'); return; }
+    if (costText.isEmpty) { _showError('Please enter cost'); return; }
+
+    final stock = double.tryParse(stockText);
+    final cost = double.tryParse(costText);
+    if (stock == null) { _showError('Stock must be a valid number'); return; }
+    if (cost == null) { _showError('Cost must be a valid number'); return; }
+
     setState(() => _isSaving = true);
 
     try {
       String? imagePath;
       if (_image != null) {
-        final appDir =
-            Directory('${Directory.current.path}/app_documents/images');
+        final docDir = await getApplicationDocumentsDirectory();
+        final appDir = Directory('${docDir.path}/images');
         if (!await appDir.exists()) {
           await appDir.create(recursive: true);
         }
-        final fileName =
-            'material_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final fileName = 'material_${DateTime.now().millisecondsSinceEpoch}.jpg';
         final savedImage = await _image!.copy('${appDir.path}/$fileName');
         imagePath = savedImage.path;
       } else if (_isEditing && widget.existing?.imagePath != null) {
@@ -660,14 +535,12 @@ class _MaterialFormSheetState extends State<MaterialFormSheet> {
 
       final material = MaterialModel(
         id: widget.existing?.id,
-        name: _nameController.text.trim(),
+        name: name,
         category: _category,
-        gsm: _category == 'Fabric'
-            ? double.tryParse(_gsmController.text)
-            : null,
+        gsm: _category == 'Fabric' ? double.tryParse(_gsmController.text) : null,
         unit: _unit,
-        currentStock: double.parse(_stockController.text),
-        costPerUnit: double.parse(_costController.text),
+        currentStock: stock,
+        costPerUnit: cost,
         imagePath: imagePath,
       );
 
@@ -682,28 +555,30 @@ class _MaterialFormSheetState extends State<MaterialFormSheet> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_isEditing
-                ? 'Material updated successfully'
-                : 'Material added successfully'),
+            content: Text(_isEditing ? 'Material updated' : 'Material added'),
             backgroundColor: AppColors.success,
             behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      _showError('Error: $e');
     } finally {
       if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  void _showError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
     }
   }
 
@@ -712,168 +587,67 @@ class _MaterialFormSheetState extends State<MaterialFormSheet> {
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
     return Container(
       height: MediaQuery.of(context).size.height * 0.88,
-      decoration: const BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      decoration: const BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       child: Padding(
-        padding: EdgeInsets.only(
-            left: 20, right: 20, top: 16, bottom: bottomPadding + 16),
+        padding: EdgeInsets.only(left: 20, right: 20, top: 16, bottom: bottomPadding + 16),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.cardBorder,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
+                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.cardBorder, borderRadius: BorderRadius.circular(2)))),
                 const SizedBox(height: 16),
-                Text(_isEditing ? 'EDIT MATERIAL' : 'ADD MATERIAL',
-                    style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.navy)),
+                Text(_isEditing ? 'EDIT MATERIAL' : 'ADD MATERIAL', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.navy)),
                 const SizedBox(height: 20),
-                _buildLabel('Category'),
-                const SizedBox(height: 6),
+                _buildLabel('Category'), const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
                   value: _category,
                   decoration: _inputDecoration(),
-                  items: ['Fabric', 'Trim', 'Packaging']
-                      .map((c) =>
-                          DropdownMenuItem(value: c, child: Text(c)))
-                      .toList(),
+                  items: ['Fabric', 'Trim', 'Packaging'].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                   onChanged: (v) {
                     if (v != null) {
-                      setState(() {
-                        _category = v;
-                        _unit = _category == 'Fabric' ? 'kg' : 'pieces';
-                        if (_category != 'Fabric') _gsmController.clear();
-                      });
+                      setState(() { _category = v; _unit = _category == 'Fabric' ? 'kg' : 'pieces'; if (_category != 'Fabric') _gsmController.clear(); });
                     }
                   },
                 ),
                 const SizedBox(height: 16),
-                _buildLabel('Material Name'),
-                const SizedBox(height: 6),
-                TextFormField(
-                  controller: _nameController,
-                  decoration: _inputDecoration(hint: 'e.g. Cotton Jersey'),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Required' : null,
-                ),
+                _buildLabel('Material Name'), const SizedBox(height: 6),
+                TextFormField(controller: _nameController, decoration: _inputDecoration(hint: 'e.g. Cotton Jersey'), validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
                 const SizedBox(height: 16),
                 if (_category == 'Fabric') ...[
-                  _buildLabel('GSM (grams per square meter)'),
-                  const SizedBox(height: 6),
-                  TextFormField(
-                    controller: _gsmController,
-                    decoration: _inputDecoration(hint: 'e.g. 180'),
-                    keyboardType: TextInputType.number,
-                  ),
+                  _buildLabel('GSM (grams per square meter)'), const SizedBox(height: 6),
+                  TextFormField(controller: _gsmController, decoration: _inputDecoration(hint: 'e.g. 180'), keyboardType: TextInputType.number),
                   const SizedBox(height: 16),
                 ],
-                _buildLabel('Stock Quantity'),
-                const SizedBox(height: 6),
+                _buildLabel('Stock Quantity'), const SizedBox(height: 6),
                 Row(
                   children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _stockController,
-                        decoration: _inputDecoration(hint: '0'),
-                        keyboardType: TextInputType.number,
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty)
-                                ? 'Required'
-                                : null,
-                      ),
-                    ),
+                    Expanded(child: TextFormField(controller: _stockController, decoration: _inputDecoration(hint: '0'), keyboardType: TextInputType.number, validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null)),
                     const SizedBox(width: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: AppColors.cardBorder),
-                        borderRadius: BorderRadius.circular(12),
-                        color: AppColors.background,
-                      ),
-                      child: Text(_unit,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600, fontSize: 15)),
-                    ),
+                    Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14), decoration: BoxDecoration(border: Border.all(color: AppColors.cardBorder), borderRadius: BorderRadius.circular(12), color: AppColors.background), child: Text(_unit, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15))),
                   ],
                 ),
                 const SizedBox(height: 16),
-                _buildLabel('Cost per $_unit (Br)'),
-                const SizedBox(height: 6),
-                TextFormField(
-                  controller: _costController,
-                  decoration: _inputDecoration(hint: '0.00'),
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Required' : null,
-                ),
+                _buildLabel('Cost per $_unit (Br)'), const SizedBox(height: 6),
+                TextFormField(controller: _costController, decoration: _inputDecoration(hint: '0.00'), keyboardType: const TextInputType.numberWithOptions(decimal: true), validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
                 const SizedBox(height: 20),
-                _buildLabel('Material Image (optional)'),
-                const SizedBox(height: 8),
+                _buildLabel('Material Image (optional)'), const SizedBox(height: 8),
                 Row(
                   children: [
                     GestureDetector(
                       onTap: _pickImage,
                       child: Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          color: AppColors.background,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                              color: AppColors.cardBorder, width: 1.5),
-                        ),
+                        width: 100, height: 100,
+                        decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.cardBorder, width: 1.5)),
                         child: _image != null
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(14),
-                                child: Image.file(_image!,
-                                    fit: BoxFit.cover),
-                              )
-                            : const Column(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.add_a_photo_outlined,
-                                      color: AppColors.textSecondary,
-                                      size: 28),
-                                  SizedBox(height: 4),
-                                  Text('Add Photo',
-                                      style: TextStyle(
-                                          fontSize: 11,
-                                          color: AppColors.textSecondary)),
-                                ],
-                              ),
+                            ? ClipRRect(borderRadius: BorderRadius.circular(14), child: Image.file(_image!, fit: BoxFit.cover))
+                            : const Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.add_a_photo_outlined, color: AppColors.textSecondary, size: 28), SizedBox(height: 4), Text('Add Photo', style: TextStyle(fontSize: 11, color: AppColors.textSecondary))]),
                       ),
                     ),
                     if (_image != null) ...[
                       const SizedBox(width: 12),
-                      GestureDetector(
-                        onTap: _removeImage,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.error.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.delete_outline,
-                              color: AppColors.error, size: 22),
-                        ),
-                      ),
+                      GestureDetector(onTap: _removeImage, child: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: AppColors.error.withOpacity(0.1), borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.delete_outline, color: AppColors.error, size: 22))),
                     ],
                   ],
                 ),
@@ -882,29 +656,10 @@ class _MaterialFormSheetState extends State<MaterialFormSheet> {
                   height: 52,
                   child: ElevatedButton(
                     onPressed: _isSaving ? null : _save,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.navy,
-                      foregroundColor: AppColors.white,
-                      disabledBackgroundColor:
-                          AppColors.navy.withOpacity(0.6),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
-                    ),
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.navy, foregroundColor: AppColors.white, disabledBackgroundColor: AppColors.navy.withOpacity(0.6), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
                     child: _isSaving
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: AppColors.white),
-                          )
-                        : Text(
-                            _isEditing
-                                ? 'UPDATE MATERIAL'
-                                : 'SAVE MATERIAL',
-                            style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600),
-                          ),
+                        ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.white))
+                        : Text(_isEditing ? 'UPDATE MATERIAL' : 'SAVE MATERIAL', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -916,42 +671,22 @@ class _MaterialFormSheetState extends State<MaterialFormSheet> {
     );
   }
 
-  Widget _buildLabel(String text) {
-    return Text(text,
-        style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary));
-  }
+  Widget _buildLabel(String text) => Text(text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary));
 
   InputDecoration _inputDecoration({String? hint}) {
     return InputDecoration(
-      hintText: hint,
-      hintStyle:
-          TextStyle(color: AppColors.textSecondary.withOpacity(0.5)),
-      border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.cardBorder)),
-      enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.cardBorder)),
-      focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.navy, width: 2)),
-      errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.error)),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      hintText: hint, hintStyle: TextStyle(color: AppColors.textSecondary.withOpacity(0.5)),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.cardBorder)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.cardBorder)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.navy, width: 2)),
+      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.error)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _stockController.dispose();
-    _costController.dispose();
-    _gsmController.dispose();
+    _nameController.dispose(); _stockController.dispose(); _costController.dispose(); _gsmController.dispose();
     super.dispose();
   }
 }
@@ -959,7 +694,6 @@ class _MaterialFormSheetState extends State<MaterialFormSheet> {
 // ========== GSM CALCULATOR ==========
 class GsmCalculatorSheet extends StatefulWidget {
   const GsmCalculatorSheet({super.key});
-
   @override
   State<GsmCalculatorSheet> createState() => _GsmCalculatorSheetState();
 }
@@ -974,18 +708,9 @@ class _GsmCalculatorSheetState extends State<GsmCalculatorSheet> {
     final weight = double.tryParse(_weightController.text);
     final width = double.tryParse(_widthController.text);
     final height = double.tryParse(_heightController.text);
-    if (weight != null &&
-        width != null &&
-        height != null &&
-        weight > 0 &&
-        width > 0 &&
-        height > 0) {
+    if (weight != null && width != null && height != null && weight > 0 && width > 0 && height > 0) {
       setState(() {
-        _calculatedGsm = GsmCalculator.calculateFromSwatch(
-          swatchWeightInGrams: weight,
-          swatchWidthCm: width,
-          swatchHeightCm: height,
-        );
+        _calculatedGsm = GsmCalculator.calculateFromSwatch(swatchWeightInGrams: weight, swatchWidthCm: width, swatchHeightCm: height);
       });
     }
   }
@@ -994,135 +719,38 @@ class _GsmCalculatorSheetState extends State<GsmCalculatorSheet> {
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
     return Container(
-      padding: EdgeInsets.only(
-          left: 20, right: 20, top: 20, bottom: bottomPadding + 20),
-      decoration: const BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: bottomPadding + 20),
+      decoration: const BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.cardBorder,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
+            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.cardBorder, borderRadius: BorderRadius.circular(2)))),
             const SizedBox(height: 20),
-            Row(
-              children: [
-                const Icon(Icons.calculate, color: AppColors.navy, size: 24),
-                const SizedBox(width: 8),
-                const Text('GSM CALCULATOR',
-                    style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.navy)),
-              ],
-            ),
+            Row(children: [const Icon(Icons.calculate, color: AppColors.navy, size: 24), const SizedBox(width: 8), const Text('GSM CALCULATOR', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.navy))]),
             const SizedBox(height: 6),
-            const Text(
-                'Cut a 10×10 cm fabric swatch and weigh it on a scale.',
-                style: TextStyle(
-                    color: AppColors.textSecondary, fontSize: 13)),
+            const Text('Cut a 10×10 cm fabric swatch and weigh it on a scale.', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
             const SizedBox(height: 20),
-            TextFormField(
-              controller: _weightController,
-              decoration: InputDecoration(
-                labelText: 'Weight of swatch (grams)',
-                labelStyle:
-                    const TextStyle(color: AppColors.textSecondary),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                prefixIcon:
-                    const Icon(Icons.scale, color: AppColors.navy),
-              ),
-              keyboardType: TextInputType.number,
-            ),
+            TextFormField(controller: _weightController, decoration: InputDecoration(labelText: 'Weight of swatch (grams)', labelStyle: const TextStyle(color: AppColors.textSecondary), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), prefixIcon: const Icon(Icons.scale, color: AppColors.navy)), keyboardType: TextInputType.number),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _widthController,
-                    decoration: InputDecoration(
-                      labelText: 'Width (cm)',
-                      labelStyle:
-                          const TextStyle(color: AppColors.textSecondary),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _heightController,
-                    decoration: InputDecoration(
-                      labelText: 'Height (cm)',
-                      labelStyle:
-                          const TextStyle(color: AppColors.textSecondary),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-              ],
-            ),
+            Row(children: [
+              Expanded(child: TextFormField(controller: _widthController, decoration: InputDecoration(labelText: 'Width (cm)', labelStyle: const TextStyle(color: AppColors.textSecondary), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))), keyboardType: TextInputType.number)),
+              const SizedBox(width: 12),
+              Expanded(child: TextFormField(controller: _heightController, decoration: InputDecoration(labelText: 'Height (cm)', labelStyle: const TextStyle(color: AppColors.textSecondary), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))), keyboardType: TextInputType.number)),
+            ]),
             const SizedBox(height: 16),
             if (_calculatedGsm != null)
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border:
-                      Border.all(color: AppColors.success.withOpacity(0.3)),
-                ),
-                child: Column(
-                  children: [
-                    const Text('FABRIC GSM',
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                            letterSpacing: 1)),
-                    const SizedBox(height: 4),
-                    Text('${_calculatedGsm!.toInt()}',
-                        style: const TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.success)),
-                    const Text('grams per square meter',
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary)),
-                  ],
-                ),
+              Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: AppColors.success.withOpacity(0.1), borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.success.withOpacity(0.3))),
+                child: Column(children: [
+                  const Text('FABRIC GSM', style: TextStyle(fontSize: 12, color: AppColors.textSecondary, letterSpacing: 1)),
+                  const SizedBox(height: 4),
+                  Text('${_calculatedGsm!.toInt()}', style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: AppColors.success)),
+                  const Text('grams per square meter', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                ]),
               ),
             const SizedBox(height: 16),
-            SizedBox(
-              height: 48,
-              child: ElevatedButton.icon(
-                onPressed: _calculate,
-                icon: const Icon(Icons.calculate, size: 20),
-                label: const Text('CALCULATE GSM'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.navy,
-                  foregroundColor: AppColors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ),
+            SizedBox(height: 48, child: ElevatedButton.icon(onPressed: _calculate, icon: const Icon(Icons.calculate, size: 20), label: const Text('CALCULATE GSM'), style: ElevatedButton.styleFrom(backgroundColor: AppColors.navy, foregroundColor: AppColors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))))),
           ],
         ),
       ),
@@ -1131,9 +759,7 @@ class _GsmCalculatorSheetState extends State<GsmCalculatorSheet> {
 
   @override
   void dispose() {
-    _weightController.dispose();
-    _widthController.dispose();
-    _heightController.dispose();
+    _weightController.dispose(); _widthController.dispose(); _heightController.dispose();
     super.dispose();
   }
 }
