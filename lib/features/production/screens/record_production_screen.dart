@@ -74,13 +74,32 @@ class _RecordProductionScreenState extends State<RecordProductionScreen> {
       final recipeItems =
           await _productService.getRecipeItems(_selectedProduct!.id!);
 
+      print('=== RECORD PRODUCTION DEBUG ===');
+      print('Product: ${_selectedProduct!.name}');
+      print('Product ID: ${_selectedProduct!.id}');
+      print('Size: ${_selectedSize!.sizeName}');
+      print('Size ID: ${_selectedSize!.id}');
+      print('Quantity: $quantity');
+      print('Recipe items count: ${recipeItems.length}');
+
       final materialUsage = _selectedSize!.materialUsage;
+      print('Material usage map: $materialUsage');
+
       final materialsToDeduct = <int, double>{};
       final materialNames = <int, String>{};
 
+      // If materialUsage is empty, build it from recipe items
+      final effectiveUsage = materialUsage.isNotEmpty
+          ? materialUsage
+          : <int, double>{
+              for (var item in recipeItems) item.materialId: 1.0
+            };
+
       for (var item in recipeItems) {
-        final qtyPerPiece = materialUsage[item.materialId] ?? 0;
+        final qtyPerPiece = effectiveUsage[item.materialId] ?? 1.0;
         final totalNeeded = qtyPerPiece * quantity;
+        print('  ${item.materialName}: qtyPerPiece=$qtyPerPiece, totalNeeded=$totalNeeded, costPerUnit=${item.costPerUnit}, unit=${item.unit}');
+
         if (totalNeeded > 0) {
           materialsToDeduct[item.materialId] = totalNeeded;
           materialNames[item.materialId] = item.materialName;
@@ -89,17 +108,32 @@ class _RecordProductionScreenState extends State<RecordProductionScreen> {
 
       final totalRevenue = _selectedProduct!.sellingPrice * quantity;
       double totalCost = 0;
+
       for (var item in recipeItems) {
         final qtyUsed = materialsToDeduct[item.materialId] ?? 0;
         final gsm = item.gsm;
+        double itemCost;
+
         if (item.isFabric && gsm != null && gsm > 0) {
+          // Fabric: qtyUsed is in m², costPerUnit is per kg
+          // Convert m² to kg: weight(grams) = m² × GSM
           final weightInGrams = qtyUsed * gsm;
-          totalCost += (weightInGrams / 1000) * item.costPerUnit;
+          itemCost = (weightInGrams / 1000) * item.costPerUnit;
+          print('  FABRIC ${item.materialName}: ${qtyUsed}m² × ${gsm}GSM = ${weightInGrams}g = ${(weightInGrams/1000).toStringAsFixed(2)}kg × Br${item.costPerUnit} = Br${itemCost.toStringAsFixed(2)}');
         } else {
-          totalCost += qtyUsed * item.costPerUnit;
+          // Trim/Packaging: direct multiplication
+          itemCost = qtyUsed * item.costPerUnit;
+          print('  TRIM ${item.materialName}: $qtyUsed ${item.unit} × Br${item.costPerUnit} = Br${itemCost.toStringAsFixed(2)}');
         }
+        totalCost += itemCost;
       }
+
       final netProfit = totalRevenue - totalCost;
+
+      print('=== SUMMARY ===');
+      print('Revenue: Br${totalRevenue.toStringAsFixed(2)}');
+      print('Cost: Br${totalCost.toStringAsFixed(2)}');
+      print('Profit: Br${netProfit.toStringAsFixed(2)}');
 
       await _productionService.recordProduction(
         productId: _selectedProduct!.id!,
@@ -115,7 +149,7 @@ class _RecordProductionScreenState extends State<RecordProductionScreen> {
 
       if (mounted) {
         _showMessage(
-          '✅ $quantity ${_selectedProduct!.name} recorded! Profit: ${CurrencyFormatter.format(netProfit)}',
+          '✅ $quantity ${_selectedProduct!.name} recorded!\nRevenue: Br${totalRevenue.toStringAsFixed(0)}\nCost: Br${totalCost.toStringAsFixed(0)}\nProfit: ${CurrencyFormatter.format(netProfit)}',
           isError: false,
         );
       }
@@ -123,6 +157,7 @@ class _RecordProductionScreenState extends State<RecordProductionScreen> {
       _quantityController.clear();
       _loadData();
     } catch (e) {
+      print('ERROR: $e');
       if (mounted) {
         _showMessage('Error: $e', isError: true);
       }
@@ -139,7 +174,7 @@ class _RecordProductionScreenState extends State<RecordProductionScreen> {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 3),
+        duration: const Duration(seconds: 5),
       ),
     );
   }
@@ -388,9 +423,9 @@ class _RecordProductionScreenState extends State<RecordProductionScreen> {
                                 fontWeight: FontWeight.w600, fontSize: 14)),
                         const SizedBox(height: 2),
                         Text(
-                          '${log.quantityProduced} pieces',
+                          '${log.quantityProduced} pieces  •  Br${log.totalRevenue.toStringAsFixed(0)} rev',
                           style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 11,
                               color: AppColors.textSecondary),
                         ),
                       ],

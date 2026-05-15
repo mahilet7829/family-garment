@@ -186,7 +186,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     );
   }
-
   Widget _materialListTile(MaterialModel material) {
     final stockColor = material.currentStock <= 0
         ? AppColors.error
@@ -203,39 +202,92 @@ class _InventoryScreenState extends State<InventoryScreen> {
         borderRadius: BorderRadius.circular(12),
         onTap: () => _openMaterialDetail(material),
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
             children: [
+              // Image / Icon
               Container(
-                width: 50, height: 50,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   color: stockColor.withOpacity(0.1),
-                  image: material.imagePath != null && File(material.imagePath!).existsSync()
-                      ? DecorationImage(image: FileImage(File(material.imagePath!)), fit: BoxFit.cover)
+                  image: material.imagePath != null &&
+                          File(material.imagePath!).existsSync()
+                      ? DecorationImage(
+                          image: FileImage(File(material.imagePath!)),
+                          fit: BoxFit.cover,
+                        )
                       : null,
                 ),
-                child: material.imagePath == null || !File(material.imagePath!).existsSync()
-                    ? Icon(Icons.inventory_2, color: stockColor, size: 24)
+                child: material.imagePath == null ||
+                        !File(material.imagePath!).existsSync()
+                    ? Icon(Icons.inventory_2, color: stockColor, size: 22)
                     : null,
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
+              // Name & Stock
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(material.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-                    const SizedBox(height: 4),
+                    Text(material.name,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 14),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 3),
                     Row(
                       children: [
-                        Container(width: 8, height: 8, decoration: BoxDecoration(color: stockColor, shape: BoxShape.circle)),
-                        const SizedBox(width: 6),
-                        Text(material.stockDisplay, style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                        Container(
+                          width: 7,
+                          height: 7,
+                          decoration: BoxDecoration(
+                            color: stockColor,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Flexible(
+                          child: Text(
+                            material.stockDisplay,
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ],
                     ),
                   ],
                 ),
               ),
+              // GSM Badge (only for fabric)
+              if (material.isFabric && material.gsm != null)
+                Container(
+                  margin: const EdgeInsets.only(left: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.navy.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text('${material.gsm!.toInt()}',
+                      style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.navy)),
+                ),
+              const SizedBox(width: 2),
+              Icon(Icons.chevron_right,
+                  color: AppColors.textSecondary.withOpacity(0.4), size: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
               if (material.isFabric && material.gsm != null)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
