@@ -248,20 +248,159 @@ class _AddProductSheetState extends State<AddProductSheet> {
     ])))));
   }
 
-  Widget _buildRecipeCard(int i, _RecipeItemEntry item) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.cardBorder)), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [Expanded(child: Container(padding: const EdgeInsets.symmetric(horizontal: 12), decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.cardBorder)), child: DropdownButtonHideUnderline(child: DropdownButtonFormField<int>(value: item.material?.id, decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.symmetric(vertical: 8), isDense: true), isExpanded: true, dropdownColor: AppColors.white, style: const TextStyle(fontSize: 14, color: AppColors.textPrimary), hint: Text('Select material', style: TextStyle(color: AppColors.textSecondary.withOpacity(0.6), fontSize: 13)), items: widget.allMaterials.map((m) => DropdownMenuItem(value: m.id, child: Text('${m.name}${m.isFabric && m.gsm != null ? " (${m.gsm!.toInt()} GSM)" : ""}', style: const TextStyle(fontSize: 13)))).toList(), onChanged: (id) { if (id != null) setState(() => item.material = widget.allMaterials.firstWhere((m) => m.id == id)); })))), const SizedBox(width: 6), GestureDetector(onTap: () => _remRecipe(i), child: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: AppColors.error.withOpacity(0.08), borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.close_rounded, color: AppColors.error, size: 18)))]), if (item.material != null) ...[const SizedBox(height: 10), Row(children: [const Text('Qty per piece: ', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)), SizedBox(width: 100, child: TextFormField(controller: item.qc, decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.cardBorder)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.cardBorder)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.navy, width: 2)), labelText: item.material!.unit, isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10)), keyboardType: TextInputType.number, style: const TextStyle(fontSize: 13)))])]])));
+  Widget _buildRecipeCard(int i, _RecipeItemEntry item) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.cardBorder)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.cardBorder)),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButtonFormField<int>(
+                    value: item.material?.id,
+                    decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.symmetric(vertical: 10), isDense: true),
+                    isExpanded: true,
+                    dropdownColor: AppColors.white,
+                    style: const TextStyle(fontSize: 15, color: AppColors.textPrimary, fontWeight: FontWeight.w500),
+                    hint: Text('Select material', style: TextStyle(color: AppColors.textSecondary.withOpacity(0.6), fontSize: 14)),
+                    items: widget.allMaterials.map((m) => DropdownMenuItem(value: m.id, child: Text('${m.name}${m.isFabric && m.gsm != null ? " (${m.gsm!.toInt()} GSM)" : ""}', style: const TextStyle(fontSize: 14)))).toList(),
+                    onChanged: (id) { if (id != null) setState(() => item.material = widget.allMaterials.firstWhere((m) => m.id == id)); },
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            GestureDetector(onTap: () => _remRecipe(i), child: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: AppColors.error.withOpacity(0.08), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.close_rounded, color: AppColors.error, size: 20))),
+          ]),
+          if (item.material != null) ...[
+            const SizedBox(height: 12),
+            if (item.material!.isFabric) ...[
+              // Fabric: Show Length + Width fields
+              Row(children: [
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('Length per piece', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                    const SizedBox(height: 4),
+                    TextFormField(
+                      controller: item.lengthController,
+                      decoration: InputDecoration(
+                        hintText: 'e.g. 0.35',
+                        suffixText: 'm',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.navy, width: 2)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      style: const TextStyle(fontSize: 15),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ]),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('Fabric Width', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                    const SizedBox(height: 4),
+                    TextFormField(
+                      controller: item.widthController,
+                      decoration: InputDecoration(
+                        hintText: 'e.g. 1.50',
+                        suffixText: 'm',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.navy, width: 2)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      style: const TextStyle(fontSize: 15),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ]),
+                ),
+              ]),
+              // Auto-calculated result
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: AppColors.success.withOpacity(0.08), borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.success.withOpacity(0.2))),
+                child: Row(children: [
+                  const Icon(Icons.calculate, color: AppColors.success, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _getFabricCalculation(item),
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.success),
+                    ),
+                  ),
+                ]),
+              ),
+            ] else ...[
+              // Trim/Packaging: Simple quantity field
+              Row(children: [
+                const Text('Qty per piece:', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                const SizedBox(width: 10),
+                SizedBox(
+                  width: 130,
+                  child: TextFormField(
+                    controller: item.qc,
+                    decoration: InputDecoration(
+                      suffixText: item.material!.unit,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.navy, width: 2)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    style: const TextStyle(fontSize: 15),
+                  ),
+                ),
+              ]),
+            ],
+          ],
+        ]),
+      ),
+    );
+  }
+
+  String _getFabricCalculation(_RecipeItemEntry item) {
+    final length = double.tryParse(item.lengthController.text);
+    final width = double.tryParse(item.widthController.text);
+    if (length != null && width != null && length > 0 && width > 0) {
+      final area = length * width;
+      final gsm = item.material?.gsm ?? 0;
+      if (gsm > 0) {
+        final weightGrams = area * gsm;
+        final weightKg = weightGrams / 1000;
+        item.qc.text = weightKg.toStringAsFixed(4);
+        return '${area.toStringAsFixed(3)} m² × $gsm GSM = ${weightKg.toStringAsFixed(4)} kg per piece';
+      }
+      return '${area.toStringAsFixed(3)} m² per piece (no GSM set)';
+    }
+    return 'Enter length and width to calculate fabric weight';
+  }
 
   Widget _buildSizeCard(int i, TextEditingController c) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.cardBorder)), child: Row(children: [Expanded(child: TextFormField(controller: c, decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)), labelText: 'Size Name', hintText: 'Small, Medium, Large', isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10)))), if (_sizes.length > 1 || _edit) GestureDetector(onTap: () => _remSize(i), child: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: AppColors.error.withOpacity(0.08), borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.close_rounded, color: AppColors.error, size: 18)))])));
 
   Widget _lbl(String t) => Text(t, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary));
   Widget _sec(String t, {bool optional = false, Widget? action}) => Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Row(children: [Text(t, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.navy)), if (optional) const Text(' (optional)', style: TextStyle(fontSize: 11, color: AppColors.textSecondary))]), if (action != null) action]);
-  InputDecoration _dec(String? h) => InputDecoration(hintText: h, hintStyle: TextStyle(color: AppColors.textSecondary.withOpacity(0.5)), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.cardBorder)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.cardBorder)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.navy, width: 2)), contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12));
+  InputDecoration _dec(String? h) => InputDecoration(hintText: h, hintStyle: TextStyle(color: AppColors.textSecondary.withOpacity(0.5)), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.cardBorder)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.cardBorder)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.navy, width: 2)), contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14));
 
   @override
-  void dispose() { _nc.dispose(); _pc.dispose(); for (var c in _sizes) c.dispose(); for (var item in _recipe) item.qc.dispose(); super.dispose(); }
+  void dispose() { _nc.dispose(); _pc.dispose(); for (var c in _sizes) c.dispose(); for (var item in _recipe) { item.qc.dispose(); item.lengthController.dispose(); item.widthController.dispose(); } super.dispose(); }
 }
 
 class _RecipeItemEntry {
   MaterialModel? material;
   final TextEditingController qc;
-  _RecipeItemEntry({this.material, required this.qc});
+  final TextEditingController lengthController;
+  final TextEditingController widthController;
+  _RecipeItemEntry({this.material, required this.qc, TextEditingController? lengthController, TextEditingController? widthController})
+      : lengthController = lengthController ?? TextEditingController(text: '0.35'),
+        widthController = widthController ?? TextEditingController(text: '1.50');
 }
