@@ -184,7 +184,7 @@ class _AddProductSheetState extends State<AddProductSheet> {
   void _addSize() => setState(() => _sizes.add(TextEditingController()));
   void _remSize(int i) { if (_sizes.length > 1 || !_edit) { _sizes[i].dispose(); _sizes.removeAt(i); setState(() {}); } }
   void _addRecipe() => setState(() => _recipe.add(_RecipeItemEntry(material: widget.allMaterials.isNotEmpty ? widget.allMaterials.first : null, qc: TextEditingController(text: '1'))));
-  void _remRecipe(int i) { _recipe[i].qc.dispose(); if (_recipe[i].lengthController != _recipe[i].qc) _recipe[i].lengthController.dispose(); _recipe[i].widthController.dispose(); _recipe.removeAt(i); setState(() {}); }
+  void _remRecipe(int i) { _recipe[i].qc.dispose(); _recipe[i].lengthController.dispose(); _recipe[i].widthController.dispose(); _recipe.removeAt(i); setState(() {}); }
   Future<void> _pick() async { try { final p = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 800, maxHeight: 800); if (p != null && mounted) setState(() => _img = File(p.path)); } catch (_) {} }
 
   Map<int, double> _buildMU() { final u = <int, double>{}; for (var item in _recipe) { if (item.material != null) u[item.material!.id!] = double.tryParse(item.qc.text) ?? 1.0; } return u; }
@@ -195,14 +195,7 @@ class _AddProductSheetState extends State<AddProductSheet> {
     if (n.isEmpty) { _err('Enter product name'); return; }
     if (pt.isEmpty) { _err('Enter selling price'); return; }
     final pr = double.tryParse(pt); if (pr == null) { _err('Price must be a number'); return; }
-
-    // Check duplicate name
-    for (var p in widget.allProducts) {
-      if (p.name.toLowerCase() == n.toLowerCase() && p.id != widget.existing?.id) {
-        _err('A product with this name already exists'); return;
-      }
-    }
-
+    for (var p in widget.allProducts) { if (p.name.toLowerCase() == n.toLowerCase() && p.id != widget.existing?.id) { _err('A product with this name already exists'); return; } }
     setState(() => _saving = true);
     try {
       List<String> ips = [];
@@ -260,7 +253,7 @@ class _AddProductSheetState extends State<AddProductSheet> {
         const SizedBox(height: 10),
         Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: AppColors.success.withOpacity(0.08), borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.success.withOpacity(0.2))), child: Row(children: [const Icon(Icons.calculate, color: AppColors.success, size: 18), const SizedBox(width: 8), Expanded(child: Text(_getFabricCalculation(item), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.success)))])),
       ] else ...[
-        Row(children: [const Text('Qty per piece:', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)), const SizedBox(width: 10), SizedBox(width: 130, child: TextFormField(controller: item.qc, decoration: InputDecoration(suffixText: item.material!.unit, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.navy, width: 2)), contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14)), keyboardType: const TextInputType.numberWithOptions(decimal: true), style: const TextStyle(fontSize: 15)))])),
+        Row(children: [const Text('Qty per piece:', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)), const SizedBox(width: 10), SizedBox(width: 130, child: TextFormField(controller: item.qc, decoration: InputDecoration(suffixText: item.material!.unit, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.navy, width: 2)), contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14)), keyboardType: const TextInputType.numberWithOptions(decimal: true), style: const TextStyle(fontSize: 15)))]),
       ],
     ],
   ])));
