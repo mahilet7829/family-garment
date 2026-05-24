@@ -18,8 +18,8 @@ class ProductBuilderScreen extends StatefulWidget {
 }
 
 class _ProductBuilderScreenState extends State<ProductBuilderScreen> {
-  final ProductService _productService = ProductService();
-  final MaterialService _materialService = MaterialService();
+  final ProductService _ps = ProductService();
+  final MaterialService _ms = MaterialService();
   List<ProductModel> _products = [];
   List<MaterialModel> _allMaterials = [];
   bool _isLoading = true;
@@ -30,19 +30,19 @@ class _ProductBuilderScreenState extends State<ProductBuilderScreen> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      final products = await _productService.getAllProducts();
-      final materials = await _materialService.getAll();
-      if (mounted) setState(() { _products = products; _allMaterials = materials; _isLoading = false; });
+      final p = await _ps.getAllProducts();
+      final m = await _ms.getAll();
+      if (mounted) setState(() { _products = p; _allMaterials = m; _isLoading = false; });
     } catch (e) { if (mounted) setState(() => _isLoading = false); }
   }
 
-  void _showAddDialog() => showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (_) => AddProductSheet(onSaved: _loadData, allMaterials: _allMaterials)).then((_) => _loadData());
-  void _showEditDialog(ProductModel p) => showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (_) => AddProductSheet(onSaved: _loadData, existing: p, allMaterials: _allMaterials)).then((_) => _loadData());
-  void _openProductDetail(ProductModel p) => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailScreen(product: p, onUpdated: _loadData, onEdit: (x) => _showEditDialog(x)))).then((_) => _loadData());
+  void _showAddDialog() => showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (_) => AddProductSheet(onSaved: _loadData, allMaterials: _allMaterials, allProducts: _products)).then((_) => _loadData());
+  void _showEditDialog(ProductModel p) => showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (_) => AddProductSheet(onSaved: _loadData, existing: p, allMaterials: _allMaterials, allProducts: _products)).then((_) => _loadData());
+  void _openProductDetail(ProductModel p) => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailScreen(product: p, onUpdated: _loadData, onEdit: (x) => _showEditDialog(x), allMaterials: _allMaterials, allProducts: _products))).then((_) => _loadData());
 
   Future<void> _deleteProduct(ProductModel p) async {
     final c = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), title: const Text('Delete Product'), content: Text('Delete "${p.name}"?'), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), ElevatedButton(onPressed: () => Navigator.pop(ctx, true), style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: AppColors.white), child: const Text('Delete'))]));
-    if (c == true) { await _productService.deleteProduct(p.id!); _loadData(); }
+    if (c == true) { await _ps.deleteProduct(p.id!); _loadData(); }
   }
 
   @override
@@ -50,19 +50,39 @@ class _ProductBuilderScreenState extends State<ProductBuilderScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('PRODUCTS'), backgroundColor: AppColors.navy, foregroundColor: AppColors.white, elevation: 0, actions: [IconButton(icon: const Icon(Icons.add_circle_outline, size: 28), onPressed: _showAddDialog)]),
-      body: _isLoading ? const Center(child: CircularProgressIndicator()) : _products.isEmpty ? _buildEmptyState() : ListView.builder(padding: const EdgeInsets.all(16), itemCount: _products.length, itemBuilder: (_, i) => _productCard(_products[i])),
+      body: _isLoading ? const Center(child: CircularProgressIndicator()) : _products.isEmpty ? _buildEmptyState() : ListView.builder(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), itemCount: _products.length, itemBuilder: (_, i) => _productCard(_products[i])),
     );
   }
 
-  Widget _buildEmptyState() => Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Container(padding: const EdgeInsets.all(24), decoration: BoxDecoration(color: AppColors.navy.withOpacity(0.05), shape: BoxShape.circle), child: Icon(Icons.checkroom_outlined, size: 56, color: AppColors.navy.withOpacity(0.4))), const SizedBox(height: 20), const Text('No products yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)), const SizedBox(height: 6), const Text('Create your first garment product', style: TextStyle(color: AppColors.textSecondary)), const SizedBox(height: 20), ElevatedButton.icon(onPressed: _showAddDialog, icon: const Icon(Icons.add), label: const Text('CREATE PRODUCT'), style: ElevatedButton.styleFrom(backgroundColor: AppColors.navy, foregroundColor: AppColors.white, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))))]));
+  Widget _buildEmptyState() => Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+    Container(padding: const EdgeInsets.all(24), decoration: BoxDecoration(color: AppColors.navy.withOpacity(0.05), shape: BoxShape.circle), child: Icon(Icons.checkroom_outlined, size: 56, color: AppColors.navy.withOpacity(0.4))),
+    const SizedBox(height: 20), const Text('No products yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)), const SizedBox(height: 6),
+    const Text('Create your first garment product', style: TextStyle(color: AppColors.textSecondary)), const SizedBox(height: 20),
+    ElevatedButton.icon(onPressed: _showAddDialog, icon: const Icon(Icons.add), label: const Text('CREATE PRODUCT'), style: ElevatedButton.styleFrom(backgroundColor: AppColors.navy, foregroundColor: AppColors.white, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)))),
+  ]));
 
-  Widget _productCard(ProductModel p) => Card(elevation: 1, shadowColor: AppColors.navy.withOpacity(0.05), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), margin: const EdgeInsets.only(bottom: 10), child: InkWell(borderRadius: BorderRadius.circular(14), onTap: () => _openProductDetail(p), child: Padding(padding: const EdgeInsets.all(14), child: Row(children: [Container(width: 56, height: 56, decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), color: AppColors.navy.withOpacity(0.05), image: p.imagePaths.isNotEmpty && File(p.imagePaths.first).existsSync() ? DecorationImage(image: FileImage(File(p.imagePaths.first)), fit: BoxFit.cover) : null), child: p.imagePaths.isEmpty || !File(p.imagePaths.first).existsSync() ? Icon(Icons.checkroom, color: AppColors.navy.withOpacity(0.5), size: 24) : null), const SizedBox(width: 14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(p.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)), const SizedBox(height: 4), Row(children: [Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), decoration: BoxDecoration(color: AppColors.navy.withOpacity(0.08), borderRadius: BorderRadius.circular(6)), child: Text(p.category, style: const TextStyle(fontSize: 11, color: AppColors.navy))), const SizedBox(width: 8), Text(CurrencyFormatter.format(p.sellingPrice), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.success))])])), IconButton(icon: const Icon(Icons.edit_outlined, size: 20, color: AppColors.navy), onPressed: () => _showEditDialog(p)), IconButton(icon: const Icon(Icons.delete_outline, size: 20, color: AppColors.error), onPressed: () => _deleteProduct(p))]))));
+  Widget _productCard(ProductModel p) => Card(elevation: 1, shadowColor: AppColors.navy.withOpacity(0.05), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), margin: const EdgeInsets.only(bottom: 10), child: InkWell(borderRadius: BorderRadius.circular(14), onTap: () => _openProductDetail(p), child: Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), child: Row(children: [
+    Container(width: 44, height: 44, decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: AppColors.navy.withOpacity(0.05), image: p.imagePaths.isNotEmpty && File(p.imagePaths.first).existsSync() ? DecorationImage(image: FileImage(File(p.imagePaths.first)), fit: BoxFit.cover) : null), child: p.imagePaths.isEmpty || !File(p.imagePaths.first).existsSync() ? Icon(Icons.checkroom, color: AppColors.navy.withOpacity(0.5), size: 20) : null),
+    const SizedBox(width: 10),
+    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(p.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+      const SizedBox(height: 3),
+      Row(children: [
+        Flexible(child: Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: AppColors.navy.withOpacity(0.08), borderRadius: BorderRadius.circular(4)), child: Text(p.category, style: const TextStyle(fontSize: 10, color: AppColors.navy), maxLines: 1, overflow: TextOverflow.ellipsis))),
+        const SizedBox(width: 6),
+        Flexible(child: Text(CurrencyFormatter.format(p.sellingPrice), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: AppColors.success), maxLines: 1, overflow: TextOverflow.ellipsis)),
+      ]),
+    ])),
+    IconButton(icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.navy), onPressed: () => _showEditDialog(p), padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 36, minHeight: 36)),
+    IconButton(icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.error), onPressed: () => _deleteProduct(p), padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 36, minHeight: 36)),
+  ]))));
 }
 
 // ========== PRODUCT DETAIL SCREEN ==========
 class ProductDetailScreen extends StatefulWidget {
   final ProductModel product; final VoidCallback onUpdated; final Function(ProductModel) onEdit;
-  const ProductDetailScreen({super.key, required this.product, required this.onUpdated, required this.onEdit});
+  final List<MaterialModel> allMaterials; final List<ProductModel> allProducts;
+  const ProductDetailScreen({super.key, required this.product, required this.onUpdated, required this.onEdit, required this.allMaterials, required this.allProducts});
   @override
   State<ProductDetailScreen> createState() => _ProductDetailScreenState();
 }
@@ -84,7 +104,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     } catch (e) { if (mounted) setState(() => _loading = false); }
   }
 
-  void _edit() => showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (_) => AddProductSheet(onSaved: () { _load(); widget.onUpdated(); }, existing: _product, allMaterials: [])).then((_) { _load(); widget.onUpdated(); });
+  void _edit() => showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (_) => AddProductSheet(onSaved: () { _load(); widget.onUpdated(); }, existing: _product, allMaterials: widget.allMaterials, allProducts: widget.allProducts)).then((_) { _load(); widget.onUpdated(); });
 
   Future<void> _delete() async {
     final c = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), title: const Text('Delete Product'), content: Text('Delete "${_product.name}"?'), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), ElevatedButton(onPressed: () => Navigator.pop(ctx, true), style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: AppColors.white), child: const Text('Delete'))]));
@@ -92,20 +112,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   Widget _buildRecipeList() {
-    if (_recipe.isEmpty) {
-      return const Text('No materials in recipe', style: TextStyle(color: AppColors.textSecondary));
-    }
+    if (_recipe.isEmpty) return const Text('No materials in recipe', style: TextStyle(color: AppColors.textSecondary));
     List<Widget> items = [];
     for (var item in _recipe) {
-      items.add(Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Row(children: [
-          Icon(Icons.circle, size: 8, color: item.isFabric ? AppColors.navy : AppColors.gold),
-          const SizedBox(width: 10),
-          Expanded(child: Text(item.materialName, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14))),
-          Text('Br ${item.costPerUnit.toStringAsFixed(2)}/${item.unit}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-        ]),
-      ));
+      items.add(Padding(padding: const EdgeInsets.only(bottom: 8), child: Row(children: [
+        Icon(Icons.circle, size: 8, color: item.isFabric ? AppColors.navy : AppColors.gold), const SizedBox(width: 10),
+        Expanded(child: Text(item.materialName, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14))),
+        Text('Br ${item.costPerUnit.toStringAsFixed(2)}/${item.unit}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+      ])));
     }
     return Column(children: items);
   }
@@ -114,55 +128,20 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: Text(_product.name), backgroundColor: AppColors.navy, foregroundColor: AppColors.white, elevation: 0, actions: [IconButton(icon: const Icon(Icons.edit_outlined), onPressed: _edit), IconButton(icon: const Icon(Icons.delete_outline, color: AppColors.error), onPressed: _delete)]),
-      body: _loading ? const Center(child: CircularProgressIndicator()) : SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Container(height: 200, decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.cardBorder)), child: _product.imagePaths.isNotEmpty && File(_product.imagePaths.first).existsSync() ? ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.file(File(_product.imagePaths.first), fit: BoxFit.cover)) : Center(child: Icon(Icons.checkroom, size: 56, color: AppColors.textSecondary.withOpacity(0.3)))),
-          const SizedBox(height: 20),
-          _infoCard(),
-          const SizedBox(height: 20),
-          _sizesCard(),
-          const SizedBox(height: 20),
-          _recipeCard(),
-          const SizedBox(height: 20),
-          Row(children: [Expanded(child: _btn('EDIT', Icons.edit_outlined, AppColors.navy, _edit)), const SizedBox(width: 12), Expanded(child: _btn('DELETE', Icons.delete_outline, AppColors.error, _delete))]),
-          const SizedBox(height: 20),
-        ]),
-      ),
+      appBar: AppBar(title: Text(_product.name, overflow: TextOverflow.ellipsis), backgroundColor: AppColors.navy, foregroundColor: AppColors.white, elevation: 0, actions: [IconButton(icon: const Icon(Icons.edit_outlined), onPressed: _edit), IconButton(icon: const Icon(Icons.delete_outline, color: AppColors.error), onPressed: _delete)]),
+      body: _loading ? const Center(child: CircularProgressIndicator()) : SingleChildScrollView(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Container(height: 200, decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.cardBorder)), child: _product.imagePaths.isNotEmpty && File(_product.imagePaths.first).existsSync() ? ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.file(File(_product.imagePaths.first), fit: BoxFit.cover)) : Center(child: Icon(Icons.checkroom, size: 56, color: AppColors.textSecondary.withOpacity(0.3)))),
+        const SizedBox(height: 20), _infoCard(), const SizedBox(height: 20), _sizesCard(), const SizedBox(height: 20), _recipeCard(), const SizedBox(height: 20),
+        Row(children: [Expanded(child: _btn('EDIT', Icons.edit_outlined, AppColors.navy, _edit)), const SizedBox(width: 12), Expanded(child: _btn('DELETE', Icons.delete_outline, AppColors.error, _delete))]),
+        const SizedBox(height: 20),
+      ])),
     );
   }
 
-  Widget _infoCard() {
-    return Card(elevation: 1, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), child: Padding(padding: const EdgeInsets.all(20), child: Column(children: [
-      _dr('Name', _product.name), _div(), _dr('Category', _product.category), _div(), _dr('Price', CurrencyFormatter.format(_product.sellingPrice)), _div(), _dr('Created', _product.createdAt.toString().substring(0, 10)), _div(), _dr('Updated', _product.updatedAt.toString().substring(0, 10)),
-    ])));
-  }
-
-  Widget _sizesCard() {
-    return Card(elevation: 1, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: AppColors.navy.withOpacity(0.1), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.straighten, color: AppColors.navy, size: 18)), const SizedBox(width: 10), const Text('SIZES', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.navy))]),
-      const SizedBox(height: 12),
-      _sizes.isEmpty ? const Text('No sizes added', style: TextStyle(color: AppColors.textSecondary)) : _buildSizesList(),
-    ])));
-  }
-
-  Widget _buildSizesList() {
-    List<Widget> chips = [];
-    for (var s in _sizes) {
-      chips.add(Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), decoration: BoxDecoration(color: AppColors.navy.withOpacity(0.05), borderRadius: BorderRadius.circular(10)), child: Text(s.sizeName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.navy))));
-    }
-    return Wrap(spacing: 8, runSpacing: 8, children: chips);
-  }
-
-  Widget _recipeCard() {
-    return Card(elevation: 1, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: AppColors.gold.withOpacity(0.15), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.receipt_long, color: AppColors.gold, size: 18)), const SizedBox(width: 10), const Text('RECIPE', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.navy))]),
-      const SizedBox(height: 12),
-      _buildRecipeList(),
-    ])));
-  }
-
+  Widget _infoCard() => Card(elevation: 1, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), child: Padding(padding: const EdgeInsets.all(20), child: Column(children: [_dr('Name', _product.name), _div(), _dr('Category', _product.category), _div(), _dr('Price', CurrencyFormatter.format(_product.sellingPrice)), _div(), _dr('Created', _product.createdAt.toString().substring(0, 10)), _div(), _dr('Updated', _product.updatedAt.toString().substring(0, 10))])));
+  Widget _sizesCard() => Card(elevation: 1, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: AppColors.navy.withOpacity(0.1), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.straighten, color: AppColors.navy, size: 18)), const SizedBox(width: 10), const Text('SIZES', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.navy))]), const SizedBox(height: 12), _sizes.isEmpty ? const Text('No sizes added', style: TextStyle(color: AppColors.textSecondary)) : _buildSizesList()])));
+  Widget _buildSizesList() { List<Widget> chips = []; for (var s in _sizes) chips.add(Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), decoration: BoxDecoration(color: AppColors.navy.withOpacity(0.05), borderRadius: BorderRadius.circular(10)), child: Text(s.sizeName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.navy)))); return Wrap(spacing: 8, runSpacing: 8, children: chips); }
+  Widget _recipeCard() => Card(elevation: 1, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: AppColors.gold.withOpacity(0.15), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.receipt_long, color: AppColors.gold, size: 18)), const SizedBox(width: 10), const Text('RECIPE', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.navy))]), const SizedBox(height: 12), _buildRecipeList()])));
   Widget _btn(String l, IconData i, Color c, VoidCallback t) => ElevatedButton.icon(onPressed: t, icon: Icon(i, size: 20), label: Text(l), style: ElevatedButton.styleFrom(backgroundColor: c, foregroundColor: AppColors.white, minimumSize: const Size(0, 52), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))));
   Widget _dr(String l, String v) => Padding(padding: const EdgeInsets.symmetric(vertical: 10), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(l, style: const TextStyle(color: AppColors.textSecondary, fontSize: 14)), Flexible(child: Text(v, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14), textAlign: TextAlign.right))]));
   Widget _div() => Divider(height: 1, color: AppColors.cardBorder.withOpacity(0.5));
@@ -170,8 +149,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
 // ========== ADD/EDIT PRODUCT SHEET ==========
 class AddProductSheet extends StatefulWidget {
-  final VoidCallback onSaved; final ProductModel? existing; final List<MaterialModel> allMaterials;
-  const AddProductSheet({super.key, required this.onSaved, this.existing, required this.allMaterials});
+  final VoidCallback onSaved; final ProductModel? existing; final List<MaterialModel> allMaterials; final List<ProductModel> allProducts;
+  const AddProductSheet({super.key, required this.onSaved, this.existing, required this.allMaterials, required this.allProducts});
   @override
   State<AddProductSheet> createState() => _AddProductSheetState();
 }
@@ -192,11 +171,20 @@ class _AddProductSheetState extends State<AddProductSheet> {
     _loadSizes(); _loadRecipe();
   }
   Future<void> _loadSizes() async { if (_edit) { final v = await _ps.getSizeVariants(widget.existing!.id!); for (var s in v) _sizes.add(TextEditingController(text: s.sizeName)); setState(() {}); } }
-  Future<void> _loadRecipe() async { if (_edit) { final items = await _ps.getRecipeItems(widget.existing!.id!); for (var item in items) { final m = widget.allMaterials.firstWhere((x) => x.id == item.materialId, orElse: () => MaterialModel(name: 'Unknown', category: 'Unknown', unit: 'pieces', currentStock: 0, costPerUnit: 0)); _recipe.add(_RecipeItemEntry(material: m, qc: TextEditingController(text: '1'))); } setState(() {}); } }
+  Future<void> _loadRecipe() async {
+    if (_edit) {
+      final items = await _ps.getRecipeItems(widget.existing!.id!);
+      for (var item in items) {
+        final m = widget.allMaterials.firstWhere((x) => x.id == item.materialId, orElse: () => MaterialModel(name: 'Unknown', category: 'Unknown', unit: 'pieces', currentStock: 0, costPerUnit: 0));
+        _recipe.add(_RecipeItemEntry(material: m, qc: TextEditingController(text: '1')));
+      }
+      setState(() {});
+    }
+  }
   void _addSize() => setState(() => _sizes.add(TextEditingController()));
   void _remSize(int i) { if (_sizes.length > 1 || !_edit) { _sizes[i].dispose(); _sizes.removeAt(i); setState(() {}); } }
   void _addRecipe() => setState(() => _recipe.add(_RecipeItemEntry(material: widget.allMaterials.isNotEmpty ? widget.allMaterials.first : null, qc: TextEditingController(text: '1'))));
-  void _remRecipe(int i) { _recipe[i].qc.dispose(); _recipe.removeAt(i); setState(() {}); }
+  void _remRecipe(int i) { _recipe[i].qc.dispose(); if (_recipe[i].lengthController != _recipe[i].qc) _recipe[i].lengthController.dispose(); _recipe[i].widthController.dispose(); _recipe.removeAt(i); setState(() {}); }
   Future<void> _pick() async { try { final p = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 800, maxHeight: 800); if (p != null && mounted) setState(() => _img = File(p.path)); } catch (_) {} }
 
   Map<int, double> _buildMU() { final u = <int, double>{}; for (var item in _recipe) { if (item.material != null) u[item.material!.id!] = double.tryParse(item.qc.text) ?? 1.0; } return u; }
@@ -207,6 +195,14 @@ class _AddProductSheetState extends State<AddProductSheet> {
     if (n.isEmpty) { _err('Enter product name'); return; }
     if (pt.isEmpty) { _err('Enter selling price'); return; }
     final pr = double.tryParse(pt); if (pr == null) { _err('Price must be a number'); return; }
+
+    // Check duplicate name
+    for (var p in widget.allProducts) {
+      if (p.name.toLowerCase() == n.toLowerCase() && p.id != widget.existing?.id) {
+        _err('A product with this name already exists'); return;
+      }
+    }
+
     setState(() => _saving = true);
     try {
       List<String> ips = [];
@@ -248,125 +244,26 @@ class _AddProductSheetState extends State<AddProductSheet> {
     ])))));
   }
 
-  Widget _buildRecipeCard(int i, _RecipeItemEntry item) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.cardBorder)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.cardBorder)),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButtonFormField<int>(
-                    value: item.material?.id,
-                    decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.symmetric(vertical: 10), isDense: true),
-                    isExpanded: true,
-                    dropdownColor: AppColors.white,
-                    style: const TextStyle(fontSize: 15, color: AppColors.textPrimary, fontWeight: FontWeight.w500),
-                    hint: Text('Select material', style: TextStyle(color: AppColors.textSecondary.withOpacity(0.6), fontSize: 14)),
-                    items: widget.allMaterials.map((m) => DropdownMenuItem(value: m.id, child: Text('${m.name}${m.isFabric && m.gsm != null ? " (${m.gsm!.toInt()} GSM)" : ""}', style: const TextStyle(fontSize: 14)))).toList(),
-                    onChanged: (id) { if (id != null) setState(() => item.material = widget.allMaterials.firstWhere((m) => m.id == id)); },
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            GestureDetector(onTap: () => _remRecipe(i), child: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: AppColors.error.withOpacity(0.08), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.close_rounded, color: AppColors.error, size: 20))),
-          ]),
-          if (item.material != null) ...[
-            const SizedBox(height: 12),
-            if (item.material!.isFabric) ...[
-              // Fabric: Show Length + Width fields
-              Row(children: [
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Text('Length per piece', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                    const SizedBox(height: 4),
-                    TextFormField(
-                      controller: item.lengthController,
-                      decoration: InputDecoration(
-                        hintText: 'e.g. 0.35',
-                        suffixText: 'm',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.navy, width: 2)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                      ),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      style: const TextStyle(fontSize: 15),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  ]),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Text('Fabric Width', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                    const SizedBox(height: 4),
-                    TextFormField(
-                      controller: item.widthController,
-                      decoration: InputDecoration(
-                        hintText: 'e.g. 1.50',
-                        suffixText: 'm',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.navy, width: 2)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                      ),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      style: const TextStyle(fontSize: 15),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  ]),
-                ),
-              ]),
-              // Auto-calculated result
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: AppColors.success.withOpacity(0.08), borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.success.withOpacity(0.2))),
-                child: Row(children: [
-                  const Icon(Icons.calculate, color: AppColors.success, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _getFabricCalculation(item),
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.success),
-                    ),
-                  ),
-                ]),
-              ),
-            ] else ...[
-              // Trim/Packaging: Simple quantity field
-              Row(children: [
-                const Text('Qty per piece:', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-                const SizedBox(width: 10),
-                SizedBox(
-                  width: 130,
-                  child: TextFormField(
-                    controller: item.qc,
-                    decoration: InputDecoration(
-                      suffixText: item.material!.unit,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.navy, width: 2)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                    ),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    style: const TextStyle(fontSize: 15),
-                  ),
-                ),
-              ]),
-            ],
-          ],
+  Widget _buildRecipeCard(int i, _RecipeItemEntry item) => Padding(padding: const EdgeInsets.only(bottom: 10), child: Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.cardBorder)), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    Row(children: [
+      Expanded(child: Container(padding: const EdgeInsets.symmetric(horizontal: 12), decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.cardBorder)), child: DropdownButtonHideUnderline(child: DropdownButtonFormField<int>(value: item.material?.id, decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.symmetric(vertical: 10), isDense: true), isExpanded: true, dropdownColor: AppColors.white, style: const TextStyle(fontSize: 15, color: AppColors.textPrimary, fontWeight: FontWeight.w500), hint: Text('Select material', style: TextStyle(color: AppColors.textSecondary.withOpacity(0.6), fontSize: 14)), items: widget.allMaterials.map((m) => DropdownMenuItem(value: m.id, child: Text('${m.name}${m.isFabric && m.gsm != null ? " (${m.gsm!.toInt()} GSM)" : ""}', style: const TextStyle(fontSize: 14)))).toList(), onChanged: (id) { if (id != null) setState(() => item.material = widget.allMaterials.firstWhere((m) => m.id == id)); })))),
+      const SizedBox(width: 8),
+      GestureDetector(onTap: () => _remRecipe(i), child: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: AppColors.error.withOpacity(0.08), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.close_rounded, color: AppColors.error, size: 20))),
+    ]),
+    if (item.material != null) ...[const SizedBox(height: 12),
+      if (item.material!.isFabric) ...[
+        Row(children: [
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Length per piece', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)), const SizedBox(height: 4), TextFormField(controller: item.lengthController, decoration: InputDecoration(hintText: 'e.g. 0.35', suffixText: 'm', border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.navy, width: 2)), contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14)), keyboardType: const TextInputType.numberWithOptions(decimal: true), style: const TextStyle(fontSize: 15), onChanged: (_) => setState(() {}))])),
+          const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Fabric Width', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)), const SizedBox(height: 4), TextFormField(controller: item.widthController, decoration: InputDecoration(hintText: 'e.g. 1.50', suffixText: 'm', border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.navy, width: 2)), contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14)), keyboardType: const TextInputType.numberWithOptions(decimal: true), style: const TextStyle(fontSize: 15), onChanged: (_) => setState(() {}))])),
         ]),
-      ),
-    );
-  }
+        const SizedBox(height: 10),
+        Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: AppColors.success.withOpacity(0.08), borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.success.withOpacity(0.2))), child: Row(children: [const Icon(Icons.calculate, color: AppColors.success, size: 18), const SizedBox(width: 8), Expanded(child: Text(_getFabricCalculation(item), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.success)))])),
+      ] else ...[
+        Row(children: [const Text('Qty per piece:', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)), const SizedBox(width: 10), SizedBox(width: 130, child: TextFormField(controller: item.qc, decoration: InputDecoration(suffixText: item.material!.unit, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.navy, width: 2)), contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14)), keyboardType: const TextInputType.numberWithOptions(decimal: true), style: const TextStyle(fontSize: 15)))])),
+      ],
+    ],
+  ])));
 
   String _getFabricCalculation(_RecipeItemEntry item) {
     final length = double.tryParse(item.lengthController.text);
@@ -374,12 +271,7 @@ class _AddProductSheetState extends State<AddProductSheet> {
     if (length != null && width != null && length > 0 && width > 0) {
       final area = length * width;
       final gsm = item.material?.gsm ?? 0;
-      if (gsm > 0) {
-        final weightGrams = area * gsm;
-        final weightKg = weightGrams / 1000;
-        item.qc.text = weightKg.toStringAsFixed(4);
-        return '${area.toStringAsFixed(3)} m² × $gsm GSM = ${weightKg.toStringAsFixed(4)} kg per piece';
-      }
+      if (gsm > 0) { final weightKg = (area * gsm) / 1000; item.qc.text = weightKg.toStringAsFixed(4); return '${area.toStringAsFixed(3)} m² × $gsm GSM = ${weightKg.toStringAsFixed(4)} kg per piece'; }
       return '${area.toStringAsFixed(3)} m² per piece (no GSM set)';
     }
     return 'Enter length and width to calculate fabric weight';
