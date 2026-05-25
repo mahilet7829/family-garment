@@ -6,450 +6,189 @@ import 'package:family_garment/services/production_service.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
-
   @override
   State<ReportsScreen> createState() => _ReportsScreenState();
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
-  final ProductionService _productionService = ProductionService();
-  Map<String, double> _allTimeSummary = {};
-  Map<String, double> _weeklySummary = {};
+  final ProductionService _ps = ProductionService();
+  Map<String, double> _monthSummary = {};
+  Map<String, double> _costBreakdown = {};
+  List<Map<String, dynamic>> _monthHistory = [];
+  DateTime _selectedMonth = DateTime.now();
   bool _isLoading = true;
 
   @override
-  void initState() {
-    super.initState();
-    _loadReports();
-  }
+  void initState() { super.initState(); _loadReports(); }
 
   Future<void> _loadReports() async {
     setState(() => _isLoading = true);
     try {
-      final now = DateTime.now();
-      final weekAgo = now.subtract(const Duration(days: 7));
+      final from = DateTime(_selectedMonth.year, _selectedMonth.month, 1);
+      final to = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0, 23, 59, 59);
 
-      _allTimeSummary = await _productionService.getProfitSummary(
-        from: DateTime(2020),
-        to: now,
-      );
+      _monthSummary = await _ps.getProfitSummary(from: from, to: to);
+      _costBreakdown = await _ps.getCostBreakdown(from: from, to: to);
 
-      _weeklySummary = await _productionService.getProfitSummary(
-        from: weekAgo,
-        to: now,
-      );
+      // Build history for last 12 months
+      _monthHistory = [];
+      for (int i = 11; i >= 0; i--) {
+        final d = DateTime(DateTime.now().year, DateTime.now().month - i, 1);
+        final f = DateTime(d.year, d.month, 1);
+        final t = DateTime(d.year, d.month + 1, 0, 23, 59, 59);
+        final s = await _ps.getProfitSummary(from: f, to: t);
+        _monthHistory.add({
+          'month': d,
+          'revenue': s['totalRevenue'] ?? 0,
+          'cost': s['totalCost'] ?? 0,
+          'profit': s['netProfit'] ?? 0,
+          'batches': (s['totalBatches'] ?? 0).toInt(),
+        });
+      }
     } catch (_) {}
     if (mounted) setState(() => _isLoading = false);
+  }
+
+  void _previousMonth() {
+    setState(() => _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1, 1));
+    _loadReports();
+  }
+
+  void _nextMonth() {
+    setState(() => _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 1));
+    _loadReports();
+  }
+
+  String _monthName(DateTime d) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[d.month - 1]} ${d.year}';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('REPORTS'),
-        backgroundColor: AppColors.navy,
-        foregroundColor: AppColors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: _loadReports,
-            tooltip: 'Refresh',
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(color: AppColors.navy),
-                  SizedBox(height: 16),
-                  Text('Loading reports...',
-                      style: TextStyle(color: AppColors.textSecondary)),
-                ],
-              ),
-            )
-          : RefreshIndicator(
-              onRefresh: _loadReports,
-              color: AppColors.navy,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildAllTimeSection(),
-                    const SizedBox(height: 24),
-                    _buildPieChartSection(),
-                    const SizedBox(height: 24),
-                    _buildWeeklySection(),
-                    const SizedBox(height: 20),
-                    _buildBatchesSection(),
-                    const SizedBox(height: 20),
-                  ],
-                ),
-              ),
-            ),
+      appBar: AppBar(title: const Text('REPORTS'), backgroundColor: AppColors.navy, foregroundColor: AppColors.white, elevation: 0, actions: [
+        IconButton(icon: const Icon(Icons.refresh_rounded), onPressed: _loadReports, tooltip: 'Refresh'),
+      ]),
+      body: _isLoading ? const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [CircularProgressIndicator(color: AppColors.navy), SizedBox(height: 16), Text('Loading reports...', style: TextStyle(color: AppColors.textSecondary))]))
+      : RefreshIndicator(onRefresh: _loadReports, color: AppColors.navy, child: SingleChildScrollView(physics: const AlwaysScrollableScrollPhysics(), padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        _buildMonthSelector(),
+        const SizedBox(height: 20),
+        _buildMonthSummary(),
+        const SizedBox(height: 20),
+        _buildCostBreakdownCard(),
+        const SizedBox(height: 20),
+        _buildHistorySection(),
+        const SizedBox(height: 20),
+      ]))),
     );
   }
 
-  Widget _buildAllTimeSection() {
-    final profit = _allTimeSummary['netProfit'] ?? 0;
-    final revenue = _allTimeSummary['totalRevenue'] ?? 0;
-    final cost = _allTimeSummary['totalCost'] ?? 0;
+  Widget _buildMonthSelector() {
+    return Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+      IconButton(icon: const Icon(Icons.chevron_left_rounded, color: AppColors.navy), onPressed: _previousMonth),
+      Container(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10), decoration: BoxDecoration(color: AppColors.navy.withOpacity(0.08), borderRadius: BorderRadius.circular(12)), child: Text(_monthName(_selectedMonth), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.navy))),
+      IconButton(icon: const Icon(Icons.chevron_right_rounded, color: AppColors.navy), onPressed: _nextMonth),
+    ]);
+  }
+
+  Widget _buildMonthSummary() {
+    final profit = _monthSummary['netProfit'] ?? 0;
+    final revenue = _monthSummary['totalRevenue'] ?? 0;
+    final cost = _monthSummary['totalCost'] ?? 0;
     final margin = revenue > 0 ? (profit / revenue * 100) : 0.0;
 
-    return Card(
-      elevation: 1,
-      shadowColor: AppColors.navy.withOpacity(0.06),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.navy.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.account_balance_wallet_rounded,
-                      color: AppColors.navy, size: 22),
-                ),
-                const SizedBox(width: 12),
-                const Text('ALL TIME',
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textSecondary,
-                        letterSpacing: 1)),
-                const Spacer(),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: margin >= 0
-                        ? AppColors.success.withOpacity(0.1)
-                        : AppColors.error.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text('${margin.toStringAsFixed(1)}% margin',
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: margin >= 0
-                              ? AppColors.success
-                              : AppColors.error)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Text(
-              CurrencyFormatter.format(profit),
-              style: TextStyle(
-                  fontSize: 40,
-                  fontWeight: FontWeight.w800,
-                  color: profit >= 0 ? AppColors.navy : AppColors.error),
-            ),
-            const SizedBox(height: 4),
-            const Text('Net Profit',
-                style: TextStyle(
-                    color: AppColors.textSecondary, fontSize: 13)),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: _miniStat(
-                      'Revenue', revenue, AppColors.success, Icons.arrow_upward_rounded),
-                ),
-                Container(width: 1, height: 40, color: AppColors.cardBorder),
-                Expanded(
-                  child: _miniStat(
-                      'Cost', cost, AppColors.error, Icons.arrow_downward_rounded),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _miniStat(
-      String label, double amount, Color color, IconData icon) {
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 18),
-        const SizedBox(height: 6),
-        Text(CurrencyFormatter.format(amount),
-            style: TextStyle(
-                fontSize: 16, fontWeight: FontWeight.w700, color: color)),
-        const SizedBox(height: 2),
-        Text(label,
-            style: const TextStyle(
-                fontSize: 11, color: AppColors.textSecondary)),
-      ],
-    );
-  }
-
-  Widget _buildPieChartSection() {
-    final profit = _allTimeSummary['netProfit'] ?? 0;
-    final cost = _allTimeSummary['totalCost'] ?? 0;
-    final total = profit + cost;
-
-    return Card(
-      elevation: 1,
-      shadowColor: AppColors.navy.withOpacity(0.05),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.gold.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.pie_chart_rounded,
-                      color: AppColors.gold, size: 20),
-                ),
-                const SizedBox(width: 10),
-                const Text('PROFIT BREAKDOWN',
-                    style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.navy,
-                        letterSpacing: 0.5)),
-              ],
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              height: 200,
-              child: total > 0
-                  ? PieChart(
-                      PieChartData(
-                        centerSpaceRadius: 50,
-                        sectionsSpace: 3,
-                        sections: [
-                          PieChartSectionData(
-                            value: profit > 0 ? profit : 0,
-                            title: profit > 0
-                                ? '${((profit / total) * 100).toStringAsFixed(0)}%'
-                                : '',
-                            color: AppColors.success,
-                            radius: 55,
-                            titleStyle: const TextStyle(
-                                color: AppColors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700),
-                          ),
-                          PieChartSectionData(
-                            value: cost > 0 ? cost : 1,
-                            title: cost > 0
-                                ? '${((cost / total) * 100).toStringAsFixed(0)}%'
-                                : '',
-                            color: AppColors.error.withOpacity(0.7),
-                            radius: 55,
-                            titleStyle: const TextStyle(
-                                color: AppColors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700),
-                          ),
-                        ],
-                      ),
-                    )
-                  : const Center(
-                      child: Text('No data yet',
-                          style: TextStyle(color: AppColors.textSecondary)),
-                    ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _legendDot(AppColors.success, 'Profit'),
-                const SizedBox(width: 24),
-                _legendDot(AppColors.error.withOpacity(0.7), 'Cost'),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _legendDot(Color color, String label) {
-    return Row(
-      children: [
-        Container(
-            width: 10, height: 10,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-        const SizedBox(width: 6),
-        Text(label,
-            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-      ],
-    );
-  }
-
-  Widget _buildWeeklySection() {
-    final profit = _weeklySummary['netProfit'] ?? 0;
-    final revenue = _weeklySummary['totalRevenue'] ?? 0;
-    final cost = _weeklySummary['totalCost'] ?? 0;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.success.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.calendar_today_rounded,
-                  color: AppColors.success, size: 18),
-            ),
-            const SizedBox(width: 10),
-            const Text('THIS WEEK',
-                style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.navy,
-                    letterSpacing: 0.5)),
-          ],
-        ),
-        const SizedBox(height: 14),
-        Card(
-          elevation: 1,
-          shadowColor: AppColors.navy.withOpacity(0.04),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                Text(
-                  CurrencyFormatter.format(profit),
-                  style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                      color: profit >= 0 ? AppColors.success : AppColors.error),
-                ),
-                const SizedBox(height: 2),
-                const Text('Weekly Net Profit',
-                    style: TextStyle(
-                        color: AppColors.textSecondary, fontSize: 12)),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _miniStat('Revenue', revenue, AppColors.success,
-                          Icons.trending_up_rounded),
-                    ),
-                    Container(
-                        width: 1, height: 35, color: AppColors.cardBorder),
-                    Expanded(
-                      child: _miniStat('Cost', cost, AppColors.error,
-                          Icons.trending_down_rounded),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBatchesSection() {
-    final allBatches =
-        (_allTimeSummary['totalBatches'] ?? 0).toInt();
-    final weeklyBatches =
-        (_weeklySummary['totalBatches'] ?? 0).toInt();
-
-    return Row(
-      children: [
-        Expanded(
-          child: Card(
-            elevation: 1,
-            shadowColor: AppColors.navy.withOpacity(0.04),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppColors.navy.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.factory_rounded,
-                        color: AppColors.navy, size: 22),
-                  ),
-                  const SizedBox(height: 12),
-                  Text('$allBatches',
-                      style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.navy)),
-                  const SizedBox(height: 2),
-                  const Text('Total Batches',
-                      style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textSecondary)),
-                ],
-              ),
-            ),
-          ),
-        ),
+    return Card(elevation: 1, shadowColor: AppColors.navy.withOpacity(0.06), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)), child: Padding(padding: const EdgeInsets.all(24), child: Column(children: [
+      Row(children: [
+        Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: AppColors.navy.withOpacity(0.1), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.navy, size: 22)),
         const SizedBox(width: 12),
-        Expanded(
-          child: Card(
-            elevation: 1,
-            shadowColor: AppColors.navy.withOpacity(0.04),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppColors.success.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.checklist_rounded,
-                        color: AppColors.success, size: 22),
-                  ),
-                  const SizedBox(height: 12),
-                  Text('$weeklyBatches',
-                      style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.success)),
-                  const SizedBox(height: 2),
-                  const Text('This Week',
-                      style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textSecondary)),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
+        Text(_monthName(_selectedMonth).toUpperCase(), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textSecondary, letterSpacing: 1)),
+        const Spacer(),
+        Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5), decoration: BoxDecoration(color: margin >= 0 ? AppColors.success.withOpacity(0.1) : AppColors.error.withOpacity(0.1), borderRadius: BorderRadius.circular(10)), child: Text('${margin.toStringAsFixed(1)}% margin', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: margin >= 0 ? AppColors.success : AppColors.error))),
+      ]),
+      const SizedBox(height: 20),
+      Text(CurrencyFormatter.format(profit), style: TextStyle(fontSize: 40, fontWeight: FontWeight.w800, color: profit >= 0 ? AppColors.navy : AppColors.error)),
+      const Text('Net Profit', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+      const SizedBox(height: 20),
+      Row(children: [
+        Expanded(child: _miniStat('Revenue', revenue, AppColors.success, Icons.arrow_upward_rounded)),
+        Container(width: 1, height: 40, color: AppColors.cardBorder),
+        Expanded(child: _miniStat('Cost', cost, AppColors.error, Icons.arrow_downward_rounded)),
+      ]),
+    ])));
+  }
+
+  Widget _miniStat(String label, double amount, Color color, IconData icon) => Column(children: [
+    Icon(icon, color: color, size: 18), const SizedBox(height: 6),
+    Text(CurrencyFormatter.format(amount), style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: color)),
+    Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+  ]);
+
+  Widget _buildCostBreakdownCard() {
+    final fabricCost = _costBreakdown['Fabric'] ?? 0;
+    final trimCost = _costBreakdown['Trim'] ?? 0;
+    final threadCost = _costBreakdown['Thread'] ?? 0;
+    final packagingCost = _costBreakdown['Packaging'] ?? 0;
+    final laborCost = _costBreakdown['Labor'] ?? 0;
+    final otherCost = _costBreakdown['Other'] ?? 0;
+    final total = fabricCost + trimCost + threadCost + packagingCost + laborCost + otherCost;
+
+    return Card(elevation: 1, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)), child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: AppColors.gold.withOpacity(0.15), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.pie_chart_rounded, color: AppColors.gold, size: 20)), const SizedBox(width: 10), const Text('COST BREAKDOWN', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.navy, letterSpacing: 0.5))]),
+      const SizedBox(height: 16),
+      if (total > 0) ...[
+        SizedBox(height: 180, child: PieChart(PieChartData(centerSpaceRadius: 40, sectionsSpace: 2, sections: [
+          if (fabricCost > 0) PieChartSectionData(value: fabricCost, title: '${((fabricCost/total)*100).toStringAsFixed(0)}%', color: AppColors.navy, radius: 45, titleStyle: const TextStyle(color: AppColors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+          if (trimCost > 0) PieChartSectionData(value: trimCost, title: '${((trimCost/total)*100).toStringAsFixed(0)}%', color: Colors.blue, radius: 45, titleStyle: const TextStyle(color: AppColors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+          if (threadCost > 0) PieChartSectionData(value: threadCost, title: '${((threadCost/total)*100).toStringAsFixed(0)}%', color: Colors.teal, radius: 45, titleStyle: const TextStyle(color: AppColors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+          if (packagingCost > 0) PieChartSectionData(value: packagingCost, title: '${((packagingCost/total)*100).toStringAsFixed(0)}%', color: Colors.orange, radius: 45, titleStyle: const TextStyle(color: AppColors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+          if (laborCost > 0) PieChartSectionData(value: laborCost, title: '${((laborCost/total)*100).toStringAsFixed(0)}%', color: Colors.red, radius: 45, titleStyle: const TextStyle(color: AppColors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+          if (otherCost > 0) PieChartSectionData(value: otherCost, title: '${((otherCost/total)*100).toStringAsFixed(0)}%', color: Colors.purple, radius: 45, titleStyle: const TextStyle(color: AppColors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+        ]))),
+        const SizedBox(height: 12),
+        _costRow('Fabric', fabricCost, AppColors.navy),
+        _costRow('Trim', trimCost, Colors.blue),
+        _costRow('Thread', threadCost, Colors.teal),
+        _costRow('Packaging', packagingCost, Colors.orange),
+        _costRow('Labor', laborCost, Colors.red),
+        _costRow('Other', otherCost, Colors.purple),
+        const Divider(height: 16),
+        _costRow('TOTAL COST', total, AppColors.textPrimary, bold: true),
+      ] else
+        const Text('No cost data this month', style: TextStyle(color: AppColors.textSecondary)),
+    ])));
+  }
+
+  Widget _costRow(String label, double amount, Color color, {bool bold = false}) => Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+    Row(children: [Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)), const SizedBox(width: 8), Text(label, style: TextStyle(fontSize: bold ? 14 : 12, fontWeight: bold ? FontWeight.w700 : FontWeight.w500, color: AppColors.textSecondary))]),
+    Text(CurrencyFormatter.format(amount), style: TextStyle(fontSize: bold ? 14 : 12, fontWeight: bold ? FontWeight.w700 : FontWeight.w600, color: color)),
+  ]));
+
+  Widget _buildHistorySection() {
+    return Card(elevation: 1, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)), child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: AppColors.navy.withOpacity(0.1), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.history_rounded, color: AppColors.navy, size: 20)), const SizedBox(width: 10), const Text('MONTHLY HISTORY', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.navy, letterSpacing: 0.5))]),
+      const SizedBox(height: 16),
+      ..._monthHistory.map((m) {
+        final d = m['month'] as DateTime;
+        final rev = (m['revenue'] as double?) ?? 0;
+        final cost = (m['cost'] as double?) ?? 0;
+        final profit = (m['profit'] as double?) ?? 0;
+        final batches = (m['batches'] as int?) ?? 0;
+        final isPositive = profit >= 0;
+        return Padding(padding: const EdgeInsets.only(bottom: 10), child: Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.cardBorder)), child: Row(children: [
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(_monthName(d), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppColors.navy)),
+            const SizedBox(height: 4),
+            Text('$batches batches  •  Rev: ${CurrencyFormatter.format(rev)}', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+          ])),
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Text(CurrencyFormatter.format(profit), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: isPositive ? AppColors.success : AppColors.error)),
+            Text('Cost: ${CurrencyFormatter.format(cost)}', style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+          ]),
+        ])));
+      }),
+      if (_monthHistory.isEmpty) const Text('No history yet', style: TextStyle(color: AppColors.textSecondary)),
+    ])));
   }
 }

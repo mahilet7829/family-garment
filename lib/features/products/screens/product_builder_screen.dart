@@ -184,7 +184,7 @@ class _AddProductSheetState extends State<AddProductSheet> {
   void _addSize() => setState(() => _sizes.add(TextEditingController()));
   void _remSize(int i) { if (_sizes.length > 1 || !_edit) { _sizes[i].dispose(); _sizes.removeAt(i); setState(() {}); } }
   void _addRecipe() => setState(() => _recipe.add(_RecipeItemEntry(material: widget.allMaterials.isNotEmpty ? widget.allMaterials.first : null, qc: TextEditingController(text: '1'))));
-  void _remRecipe(int i) { _recipe[i].qc.dispose(); _recipe[i].lengthController.dispose(); _recipe[i].widthController.dispose(); _recipe.removeAt(i); setState(() {}); }
+  void _remRecipe(int i) { _recipe[i].qc.dispose(); _recipe[i].lengthController.dispose(); _recipe[i].widthController.dispose(); _recipe[i].gramsController.dispose(); _recipe.removeAt(i); setState(() {}); }
   Future<void> _pick() async { try { final p = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 800, maxHeight: 800); if (p != null && mounted) setState(() => _img = File(p.path)); } catch (_) {} }
 
   Map<int, double> _buildMU() { final u = <int, double>{}; for (var item in _recipe) { if (item.material != null) u[item.material!.id!] = double.tryParse(item.qc.text) ?? 1.0; } return u; }
@@ -245,6 +245,7 @@ class _AddProductSheetState extends State<AddProductSheet> {
     ]),
     if (item.material != null) ...[const SizedBox(height: 12),
       if (item.material!.isFabric) ...[
+        // Fabric: Length × Width
         Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Length per piece', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)), const SizedBox(height: 4), TextFormField(controller: item.lengthController, decoration: InputDecoration(hintText: 'e.g. 0.35', suffixText: 'm', border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.navy, width: 2)), contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14)), keyboardType: const TextInputType.numberWithOptions(decimal: true), style: const TextStyle(fontSize: 15), onChanged: (_) => setState(() {}))])),
           const SizedBox(width: 10),
@@ -252,7 +253,15 @@ class _AddProductSheetState extends State<AddProductSheet> {
         ]),
         const SizedBox(height: 10),
         Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: AppColors.success.withOpacity(0.08), borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.success.withOpacity(0.2))), child: Row(children: [const Icon(Icons.calculate, color: AppColors.success, size: 18), const SizedBox(width: 8), Expanded(child: Text(_getFabricCalculation(item), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.success)))])),
+      ] else if (item.material!.unit == 'kg') ...[
+        // Weight-based trim: grams input → auto-convert to kg
+        Row(children: [
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Grams per piece', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)), const SizedBox(height: 4), TextFormField(controller: item.gramsController, decoration: InputDecoration(hintText: 'e.g. 15', suffixText: 'g', border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.navy, width: 2)), contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14)), keyboardType: const TextInputType.numberWithOptions(decimal: true), style: const TextStyle(fontSize: 15), onChanged: (_) => setState(() {}))])),
+        ]),
+        const SizedBox(height: 10),
+        Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: AppColors.success.withOpacity(0.08), borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.success.withOpacity(0.2))), child: Row(children: [const Icon(Icons.calculate, color: AppColors.success, size: 18), const SizedBox(width: 8), Expanded(child: Text(_getGramsCalculation(item), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.success)))])),
       ] else ...[
+        // Regular trim: direct quantity
         Row(children: [const Text('Qty per piece:', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)), const SizedBox(width: 10), SizedBox(width: 130, child: TextFormField(controller: item.qc, decoration: InputDecoration(suffixText: item.material!.unit, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.navy, width: 2)), contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14)), keyboardType: const TextInputType.numberWithOptions(decimal: true), style: const TextStyle(fontSize: 15)))]),
       ],
     ],
@@ -270,6 +279,16 @@ class _AddProductSheetState extends State<AddProductSheet> {
     return 'Enter length and width to calculate fabric weight';
   }
 
+  String _getGramsCalculation(_RecipeItemEntry item) {
+    final grams = double.tryParse(item.gramsController.text);
+    if (grams != null && grams > 0) {
+      final kg = grams / 1000;
+      item.qc.text = kg.toStringAsFixed(6);
+      return '$grams g = $kg kg per piece';
+    }
+    return 'Enter grams to calculate kg per piece';
+  }
+
   Widget _buildSizeCard(int i, TextEditingController c) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.cardBorder)), child: Row(children: [Expanded(child: TextFormField(controller: c, decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)), labelText: 'Size Name', hintText: 'Small, Medium, Large', isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10)))), if (_sizes.length > 1 || _edit) GestureDetector(onTap: () => _remSize(i), child: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: AppColors.error.withOpacity(0.08), borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.close_rounded, color: AppColors.error, size: 18)))])));
 
   Widget _lbl(String t) => Text(t, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary));
@@ -277,7 +296,7 @@ class _AddProductSheetState extends State<AddProductSheet> {
   InputDecoration _dec(String? h) => InputDecoration(hintText: h, hintStyle: TextStyle(color: AppColors.textSecondary.withOpacity(0.5)), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.cardBorder)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.cardBorder)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.navy, width: 2)), contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14));
 
   @override
-  void dispose() { _nc.dispose(); _pc.dispose(); for (var c in _sizes) c.dispose(); for (var item in _recipe) { item.qc.dispose(); item.lengthController.dispose(); item.widthController.dispose(); } super.dispose(); }
+  void dispose() { _nc.dispose(); _pc.dispose(); for (var c in _sizes) c.dispose(); for (var item in _recipe) { item.qc.dispose(); item.lengthController.dispose(); item.widthController.dispose(); item.gramsController.dispose(); } super.dispose(); }
 }
 
 class _RecipeItemEntry {
@@ -285,7 +304,9 @@ class _RecipeItemEntry {
   final TextEditingController qc;
   final TextEditingController lengthController;
   final TextEditingController widthController;
-  _RecipeItemEntry({this.material, required this.qc, TextEditingController? lengthController, TextEditingController? widthController})
+  final TextEditingController gramsController;
+  _RecipeItemEntry({this.material, required this.qc, TextEditingController? lengthController, TextEditingController? widthController, TextEditingController? gramsController})
       : lengthController = lengthController ?? TextEditingController(text: '0.35'),
-        widthController = widthController ?? TextEditingController(text: '1.50');
+        widthController = widthController ?? TextEditingController(text: '1.50'),
+        gramsController = gramsController ?? TextEditingController(text: '15');
 }

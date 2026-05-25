@@ -41,11 +41,17 @@ class _InventoryScreenState extends State<InventoryScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('INVENTORY'), backgroundColor: AppColors.navy, foregroundColor: AppColors.white, elevation: 0, actions: [
         IconButton(icon: const Icon(Icons.calculate_outlined), onPressed: _showGsmCalculator, tooltip: 'GSM Calculator'),
-        IconButton(icon: const Icon(Icons.add_circle_outline, size: 28), onPressed: _showAddMaterialDialog, tooltip: 'Add Material'),
+        IconButton(icon: const Icon(Icons.add_circle_outline, size: 28), onPressed: _showAddMaterialDialog, tooltip: 'Add'),
       ]),
       body: Column(children: [
         Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), child: SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: [
-          _filterChip('All', null), const SizedBox(width: 8), _filterChip('Fabric', 'Fabric'), const SizedBox(width: 8), _filterChip('Trim', 'Trim'), const SizedBox(width: 8), _filterChip('Packaging', 'Packaging'),
+          _filterChip('All', null), const SizedBox(width: 8),
+          _filterChip('Fabric', 'Fabric'), const SizedBox(width: 8),
+          _filterChip('Trim', 'Trim'), const SizedBox(width: 8),
+          _filterChip('Thread', 'Thread'), const SizedBox(width: 8),
+          _filterChip('Packaging', 'Packaging'), const SizedBox(width: 8),
+          _filterChip('Labor', 'Labor'), const SizedBox(width: 8),
+          _filterChip('Other', 'Other'),
         ]))),
         Expanded(child: _isLoading ? const Center(child: CircularProgressIndicator()) : _materials.isEmpty ? _buildEmptyState() : ListView.builder(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), itemCount: _materials.length, itemBuilder: (_, i) => _materialListTile(_materials[i]))),
       ]),
@@ -61,13 +67,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   Widget _filterChip(String label, String? category) {
     final isSelected = _filterCategory == category;
-    return FilterChip(label: Text(label, style: TextStyle(color: isSelected ? AppColors.white : AppColors.navy, fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal)), selected: isSelected, onSelected: (s) { setState(() => _filterCategory = s ? category : null); _loadMaterials(); }, backgroundColor: AppColors.white, selectedColor: AppColors.navy, checkmarkColor: AppColors.white, side: BorderSide(color: isSelected ? AppColors.navy : AppColors.cardBorder), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)));
+    return FilterChip(label: Text(label, style: TextStyle(color: isSelected ? AppColors.white : AppColors.navy, fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal, fontSize: 12)), selected: isSelected, onSelected: (s) { setState(() => _filterCategory = s ? category : null); _loadMaterials(); }, backgroundColor: AppColors.white, selectedColor: AppColors.navy, checkmarkColor: AppColors.white, side: BorderSide(color: isSelected ? AppColors.navy : AppColors.cardBorder), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)));
   }
 
   Widget _materialListTile(MaterialModel m) {
     final sc = m.currentStock <= 0 ? AppColors.error : m.currentStock < 5 ? AppColors.warning : AppColors.success;
+    final icon = m.category == 'Labor' ? Icons.people : m.category == 'Other' ? Icons.more_horiz : m.category == 'Thread' ? Icons.texture : Icons.inventory_2;
     return Card(margin: const EdgeInsets.only(bottom: 8), elevation: 1, shadowColor: AppColors.navy.withOpacity(0.05), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), child: InkWell(borderRadius: BorderRadius.circular(12), onTap: () => _openMaterialDetail(m), child: Padding(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12), child: Row(children: [
-      Container(width: 44, height: 44, decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: sc.withOpacity(0.1), image: m.imagePath != null && File(m.imagePath!).existsSync() ? DecorationImage(image: FileImage(File(m.imagePath!)), fit: BoxFit.cover) : null), child: (m.imagePath == null || !File(m.imagePath!).existsSync()) ? Icon(Icons.inventory_2, color: sc, size: 22) : null),
+      Container(width: 44, height: 44, decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: sc.withOpacity(0.1), image: m.imagePath != null && File(m.imagePath!).existsSync() ? DecorationImage(image: FileImage(File(m.imagePath!)), fit: BoxFit.cover) : null), child: (m.imagePath == null || !File(m.imagePath!).existsSync()) ? Icon(icon, color: sc, size: 22) : null),
       const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(m.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis), const SizedBox(height: 3), Row(children: [Container(width: 7, height: 7, decoration: BoxDecoration(color: sc, shape: BoxShape.circle)), const SizedBox(width: 5), Flexible(child: Text(m.stockDisplay, style: TextStyle(fontSize: 12, color: AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis))])])),
       if (m.isFabric && m.gsm != null) Container(margin: const EdgeInsets.only(left: 6), padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3), decoration: BoxDecoration(color: AppColors.navy.withOpacity(0.08), borderRadius: BorderRadius.circular(8)), child: Text('${m.gsm!.toInt()}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.navy))),
@@ -90,7 +97,7 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
   Future<void> _refresh() async { final u = await _service.getById(_material.id!); if (u != null && mounted) { setState(() => _material = u); widget.onUpdated(); } }
   void _edit() => showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (_) => MaterialFormSheet(existing: _material, onSaved: _refresh, allMaterials: [])).then((_) => _refresh());
   Future<void> _delete() async {
-    final c = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), title: const Text('Delete Material'), content: Text('Delete "${_material.name}"?'), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), ElevatedButton(onPressed: () => Navigator.pop(ctx, true), style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: AppColors.white), child: const Text('Delete'))]));
+    final c = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), title: const Text('Delete'), content: Text('Delete "${_material.name}"?'), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), ElevatedButton(onPressed: () => Navigator.pop(ctx, true), style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: AppColors.white), child: const Text('Delete'))]));
     if (c == true) { await _service.delete(_material.id!); widget.onUpdated(); if (mounted) Navigator.pop(context); }
   }
   @override
@@ -127,6 +134,9 @@ class _MaterialFormSheetState extends State<MaterialFormSheet> {
   File? _img; bool _saving = false;
   bool get _edit => widget.existing != null;
 
+  final List<String> _categories = ['Fabric', 'Trim', 'Thread', 'Packaging', 'Labor', 'Other'];
+  final List<String> _units = ['kg', 'grams', 'meters', 'pieces', 'cones', 'liters', 'hours', 'days', 'months'];
+
   @override
   void initState() {
     super.initState();
@@ -139,8 +149,8 @@ class _MaterialFormSheetState extends State<MaterialFormSheet> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return; if (_saving) return;
     final name = _nc.text.trim(), st = _sc.text.trim(), ct = _cc.text.trim();
-    if (name.isEmpty) { _err('Enter material name'); return; }
-    if (st.isEmpty) { _err('Enter stock quantity'); return; }
+    if (name.isEmpty) { _err('Enter name'); return; }
+    if (st.isEmpty) { _err('Enter stock/quantity'); return; }
     if (ct.isEmpty) { _err('Enter cost'); return; }
     final stock = double.tryParse(st), cost = double.tryParse(ct);
     if (stock == null) { _err('Stock must be a number'); return; }
@@ -166,12 +176,14 @@ class _MaterialFormSheetState extends State<MaterialFormSheet> {
       Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.cardBorder, borderRadius: BorderRadius.circular(2)))), const SizedBox(height: 16),
       Text(_edit ? 'EDIT MATERIAL' : 'ADD MATERIAL', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.navy)), const SizedBox(height: 20),
       _lbl('Category'), const SizedBox(height: 6),
-      DropdownButtonFormField<String>(value: _cat, decoration: _dec(), items: ['Fabric','Trim','Packaging'].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(), onChanged: (v) { if (v != null) { setState(() { _cat = v; _unit = _cat == 'Fabric' ? 'kg' : 'pieces'; if (_cat != 'Fabric') _gc.clear(); }); } }),
-      const SizedBox(height: 16), _lbl('Material Name'), const SizedBox(height: 6),
-      TextFormField(controller: _nc, decoration: _dec(hint: 'e.g. Cotton Jersey'), validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
+      DropdownButtonFormField<String>(value: _cat, decoration: _dec(), items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(), onChanged: (v) { if (v != null) { setState(() { _cat = v; if (_cat == 'Fabric') _unit = 'kg'; if (_cat != 'Fabric') _gc.clear(); }); } }),
+      const SizedBox(height: 16), _lbl('Unit'), const SizedBox(height: 6),
+      DropdownButtonFormField<String>(value: _unit, decoration: _dec(), items: _units.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(), onChanged: (v) { if (v != null) setState(() => _unit = v); }),
+      const SizedBox(height: 16), _lbl('Name'), const SizedBox(height: 6),
+      TextFormField(controller: _nc, decoration: _dec(hint: _cat == 'Labor' ? 'e.g. Worker X Salary' : 'e.g. Cotton Jersey'), validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
       const SizedBox(height: 16),
-      if (_cat == 'Fabric') ...[_lbl('GSM'), const SizedBox(height: 6), TextFormField(controller: _gc, decoration: _dec(hint: '180'), keyboardType: TextInputType.number), const SizedBox(height: 16)],
-      _lbl('Stock Quantity'), const SizedBox(height: 6),
+      if (_cat == 'Fabric') ...[_lbl('GSM (grams per m²)'), const SizedBox(height: 6), TextFormField(controller: _gc, decoration: _dec(hint: '180'), keyboardType: TextInputType.number), const SizedBox(height: 16)],
+      _lbl(_cat == 'Labor' || _cat == 'Other' ? 'Amount' : 'Stock Quantity'), const SizedBox(height: 6),
       Row(children: [Expanded(child: TextFormField(controller: _sc, decoration: _dec(hint: '0'), keyboardType: TextInputType.number, validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null)), const SizedBox(width: 12), Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14), decoration: BoxDecoration(border: Border.all(color: AppColors.cardBorder), borderRadius: BorderRadius.circular(12), color: AppColors.background), child: Text(_unit, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)))]),
       const SizedBox(height: 16), _lbl('Cost per $_unit (Br)'), const SizedBox(height: 6),
       TextFormField(controller: _cc, decoration: _dec(hint: '0.00'), keyboardType: const TextInputType.numberWithOptions(decimal: true), validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
