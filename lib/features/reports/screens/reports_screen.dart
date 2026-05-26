@@ -32,20 +32,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
       _costBreakdown = await _ps.getCostBreakdown(from: from, to: to);
       _auditTrail = await _ps.getDetailedAuditTrail(from: from, to: to);
 
-      // Build history for last 12 months
+      // Build history: only show months from current month forward that have data
       _monthHistory = [];
-      for (int i = 11; i >= 0; i--) {
-        final d = DateTime(DateTime.now().year, DateTime.now().month - i, 1);
+      final now = DateTime.now();
+      for (int i = 0; i < 12; i++) {
+        final d = DateTime(now.year, now.month - i, 1);
         final f = DateTime(d.year, d.month, 1);
         final t = DateTime(d.year, d.month + 1, 0, 23, 59, 59);
         final s = await _ps.getProfitSummary(from: f, to: t);
-        _monthHistory.add({
-          'month': d,
-          'revenue': s['totalRevenue'] ?? 0,
-          'cost': s['totalCost'] ?? 0,
-          'profit': s['netProfit'] ?? 0,
-          'batches': (s['totalBatches'] ?? 0).toInt(),
-        });
+        // Only include months with actual activity
+        if ((s['totalRevenue'] ?? 0) > 0 || (s['totalCost'] ?? 0) > 0 || (s['totalBatches'] ?? 0) > 0) {
+          _monthHistory.add({
+            'month': d,
+            'revenue': s['totalRevenue'] ?? 0,
+            'cost': s['totalCost'] ?? 0,
+            'profit': s['netProfit'] ?? 0,
+            'batches': (s['totalBatches'] ?? 0).toInt(),
+          });
+        }
       }
     } catch (_) {}
     if (mounted) setState(() => _isLoading = false);
@@ -57,7 +61,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   void _nextMonth() {
-    setState(() => _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 1));
+    // Don't go past current month
+    final next = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 1);
+    if (next.isAfter(DateTime.now())) return;
+    setState(() => _selectedMonth = next);
     _loadReports();
   }
 
@@ -90,10 +97,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Widget _buildMonthSelector() {
+    final nextMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 1);
+    final canGoForward = !nextMonth.isAfter(DateTime.now());
+
     return Row(mainAxisAlignment: MainAxisAlignment.center, children: [
       IconButton(icon: const Icon(Icons.chevron_left_rounded, color: AppColors.navy), onPressed: _previousMonth),
       Container(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10), decoration: BoxDecoration(color: AppColors.navy.withOpacity(0.08), borderRadius: BorderRadius.circular(12)), child: Text(_monthName(_selectedMonth), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.navy))),
-      IconButton(icon: const Icon(Icons.chevron_right_rounded, color: AppColors.navy), onPressed: _nextMonth),
+      IconButton(
+        icon: Icon(Icons.chevron_right_rounded, color: canGoForward ? AppColors.navy : AppColors.textSecondary.withOpacity(0.3)),
+        onPressed: canGoForward ? _nextMonth : null,
+      ),
     ]);
   }
 
@@ -185,7 +198,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
     Text(CurrencyFormatter.format(amount), style: TextStyle(fontSize: bold ? 14 : 12, fontWeight: bold ? FontWeight.w700 : FontWeight.w600, color: color)),
   ]));
 
-  // ========== UNIFIED AUDIT TRAIL SECTION ==========
   Widget _buildAuditTrailSection() {
     return Card(elevation: 1, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)), child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
@@ -205,7 +217,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.cardBorder)),
             child: Row(children: [
-              // Type icon
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
@@ -219,7 +230,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ),
               ),
               const SizedBox(width: 10),
-              // Description & details
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(entry.description, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 2),
@@ -228,7 +238,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 Text(_formatAuditDate(entry.date), style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
               ])),
               const SizedBox(width: 8),
-              // Amount
               Text(
                 CurrencyFormatter.format(entry.amount),
                 style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: entry.amount >= 0 ? AppColors.success : AppColors.error),
@@ -266,7 +275,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           ]),
         ])));
       }),
-      if (_monthHistory.isEmpty) const Text('No history yet', style: TextStyle(color: AppColors.textSecondary)),
+      if (_monthHistory.isEmpty) const Text('No history yet. Start recording production and expenses.', style: TextStyle(color: AppColors.textSecondary)),
     ])));
   }
 }
