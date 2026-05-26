@@ -22,14 +22,22 @@ class ProductionService {
     final db = await _db.database;
 
     return await db.transaction((txn) async {
+      // Fetch all material categories for stock check
       for (var entry in materialsToDeduct.entries) {
         final materialId = entry.key;
         final deductQty = entry.value;
 
         final result = await txn.query('materials',
-            columns: ['currentStock'], where: 'id = ?', whereArgs: [materialId]);
+            columns: ['currentStock', 'category'],
+            where: 'id = ?',
+            whereArgs: [materialId]);
 
         if (result.isEmpty) throw Exception('Material ID $materialId not found');
+
+        final category = result.first['category'] as String? ?? '';
+
+        // Skip stock check for Labor and Other (they are monthly expenses, not physical stock)
+        if (category == 'Labor' || category == 'Other') continue;
 
         final currentStock = (result.first['currentStock'] as num).toDouble();
         if (currentStock < deductQty) {
@@ -37,9 +45,17 @@ class ProductionService {
         }
       }
 
+      // Deduct all materials (skip Labor/Other)
       for (var entry in materialsToDeduct.entries) {
         final materialId = entry.key;
         final deductQty = entry.value;
+
+        final catResult = await txn.query('materials',
+            columns: ['category'], where: 'id = ?', whereArgs: [materialId]);
+        final category = catResult.isNotEmpty ? (catResult.first['category'] as String? ?? '') : '';
+
+        if (category == 'Labor' || category == 'Other') continue;
+
         await txn.rawUpdate(
           'UPDATE materials SET currentStock = currentStock - ?, updatedAt = ? WHERE id = ?',
           [deductQty, DateTime.now().toIso8601String(), materialId],
@@ -131,7 +147,6 @@ class ProductionService {
       if (materialsStr.isEmpty) continue;
 
       final entries = materialsStr.split(',');
-      // Get total product cost ratio
       final totalCost = log.totalCost;
       if (totalCost <= 0) continue;
 
@@ -141,7 +156,6 @@ class ProductionService {
           final category = parts[1].trim();
           final qty = double.tryParse(parts[2]) ?? 0;
 
-          // Estimate cost per material by looking up current cost
           final materialMaps = await db.query('materials', where: 'name = ?', whereArgs: [parts[0].trim()]);
           if (materialMaps.isNotEmpty) {
             final costPerUnit = (materialMaps.first['costPerUnit'] as num).toDouble();

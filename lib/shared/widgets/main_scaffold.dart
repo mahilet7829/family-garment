@@ -4,6 +4,7 @@ import '../../features/dashboard/screens/dashboard_screen.dart';
 import '../../features/inventory/screens/inventory_screen.dart';
 import '../../features/products/screens/product_builder_screen.dart';
 import '../../features/production/screens/record_production_screen.dart';
+import '../../features/expenses/screens/expenses_screen.dart';
 import '../../features/reports/screens/reports_screen.dart';
 
 class MainScaffold extends StatefulWidget {
@@ -21,6 +22,7 @@ class _MainScaffoldState extends State<MainScaffold> {
     InventoryScreen(),
     ProductBuilderScreen(),
     RecordProductionScreen(),
+    ExpensesScreen(),
     ReportsScreen(),
   ];
 
@@ -45,8 +47,8 @@ class _MainScaffoldState extends State<MainScaffold> {
           backgroundColor: AppColors.white,
           selectedItemColor: AppColors.navy,
           unselectedItemColor: AppColors.textSecondary,
-          selectedFontSize: 12,
-          unselectedFontSize: 12,
+          selectedFontSize: 11,
+          unselectedFontSize: 11,
           items: const [
             BottomNavigationBarItem(
               icon: Icon(Icons.calculate_outlined),
@@ -69,10 +71,15 @@ class _MainScaffoldState extends State<MainScaffold> {
               label: 'Record',
             ),
             BottomNavigationBarItem(
+              icon: Icon(Icons.monetization_on_outlined),
+              activeIcon: Icon(Icons.monetization_on),
+              label: 'Expenses',
+            ),
+            BottomNavigationBarItem(
               icon: Icon(Icons.bar_chart_outlined),
               activeIcon: Icon(Icons.bar_chart),
               label: 'Reports',
-            ),a\
+            ),
           ],
         ),
       ),
