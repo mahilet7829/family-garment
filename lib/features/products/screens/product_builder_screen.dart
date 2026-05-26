@@ -93,7 +93,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   @override
   void initState() { super.initState(); _product = widget.product; _load(); }
-
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
@@ -103,14 +102,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       if (mounted) setState(() { _sizes = s; _recipe = r; if (u != null) _product = u; _loading = false; });
     } catch (e) { if (mounted) setState(() => _loading = false); }
   }
-
   void _edit() => showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (_) => AddProductSheet(onSaved: () { _load(); widget.onUpdated(); }, existing: _product, allMaterials: widget.allMaterials, allProducts: widget.allProducts)).then((_) { _load(); widget.onUpdated(); });
-
   Future<void> _delete() async {
     final c = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), title: const Text('Delete Product'), content: Text('Delete "${_product.name}"?'), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), ElevatedButton(onPressed: () => Navigator.pop(ctx, true), style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: AppColors.white), child: const Text('Delete'))]));
     if (c == true) { await _ps.deleteProduct(_product.id!); widget.onUpdated(); if (mounted) Navigator.pop(context); }
   }
-
   Widget _buildRecipeList() {
     if (_recipe.isEmpty) return const Text('No materials in recipe', style: TextStyle(color: AppColors.textSecondary));
     List<Widget> items = [];
@@ -123,7 +119,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
     return Column(children: items);
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -137,7 +132,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       ])),
     );
   }
-
   Widget _infoCard() => Card(elevation: 1, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), child: Padding(padding: const EdgeInsets.all(20), child: Column(children: [_dr('Name', _product.name), _div(), _dr('Category', _product.category), _div(), _dr('Price', CurrencyFormatter.format(_product.sellingPrice)), _div(), _dr('Created', _product.createdAt.toString().substring(0, 10)), _div(), _dr('Updated', _product.updatedAt.toString().substring(0, 10))])));
   Widget _sizesCard() => Card(elevation: 1, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: AppColors.navy.withOpacity(0.1), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.straighten, color: AppColors.navy, size: 18)), const SizedBox(width: 10), const Text('SIZES', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.navy))]), const SizedBox(height: 12), _sizes.isEmpty ? const Text('No sizes added', style: TextStyle(color: AppColors.textSecondary)) : _buildSizesList()])));
   Widget _buildSizesList() { List<Widget> chips = []; for (var s in _sizes) chips.add(Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), decoration: BoxDecoration(color: AppColors.navy.withOpacity(0.05), borderRadius: BorderRadius.circular(10)), child: Text(s.sizeName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.navy)))); return Wrap(spacing: 8, runSpacing: 8, children: chips); }
@@ -184,7 +178,7 @@ class _AddProductSheetState extends State<AddProductSheet> {
   void _addSize() => setState(() => _sizes.add(TextEditingController()));
   void _remSize(int i) { if (_sizes.length > 1 || !_edit) { _sizes[i].dispose(); _sizes.removeAt(i); setState(() {}); } }
   void _addRecipe() => setState(() => _recipe.add(_RecipeItemEntry(material: widget.allMaterials.isNotEmpty ? widget.allMaterials.first : null, qc: TextEditingController(text: '1'))));
-  void _remRecipe(int i) { _recipe[i].qc.dispose(); _recipe[i].lengthController.dispose(); _recipe[i].widthController.dispose(); _recipe[i].gramsController.dispose(); _recipe.removeAt(i); setState(() {}); }
+  void _remRecipe(int i) { _recipe[i].qc.dispose(); _recipe[i].lengthController.dispose(); _recipe[i].widthController.dispose(); _recipe[i].gramsController.dispose(); _recipe[i].batchQtyController.dispose(); _recipe[i].batchSizeController.dispose(); _recipe.removeAt(i); setState(() {}); }
   Future<void> _pick() async { try { final p = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 800, maxHeight: 800); if (p != null && mounted) setState(() => _img = File(p.path)); } catch (_) {} }
 
   Map<int, double> _buildMU() { final u = <int, double>{}; for (var item in _recipe) { if (item.material != null) u[item.material!.id!] = double.tryParse(item.qc.text) ?? 1.0; } return u; }
@@ -245,7 +239,6 @@ class _AddProductSheetState extends State<AddProductSheet> {
     ]),
     if (item.material != null) ...[const SizedBox(height: 12),
       if (item.material!.isFabric) ...[
-        // Fabric: Length × Width
         Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Length per piece', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)), const SizedBox(height: 4), TextFormField(controller: item.lengthController, decoration: InputDecoration(hintText: 'e.g. 0.35', suffixText: 'm', border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.navy, width: 2)), contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14)), keyboardType: const TextInputType.numberWithOptions(decimal: true), style: const TextStyle(fontSize: 15), onChanged: (_) => setState(() {}))])),
           const SizedBox(width: 10),
@@ -254,15 +247,20 @@ class _AddProductSheetState extends State<AddProductSheet> {
         const SizedBox(height: 10),
         Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: AppColors.success.withOpacity(0.08), borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.success.withOpacity(0.2))), child: Row(children: [const Icon(Icons.calculate, color: AppColors.success, size: 18), const SizedBox(width: 8), Expanded(child: Text(_getFabricCalculation(item), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.success)))])),
       ] else if (item.material!.unit == 'kg') ...[
-        // Weight-based trim: grams input → auto-convert to kg
         Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Grams per piece', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)), const SizedBox(height: 4), TextFormField(controller: item.gramsController, decoration: InputDecoration(hintText: 'e.g. 15', suffixText: 'g', border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.navy, width: 2)), contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14)), keyboardType: const TextInputType.numberWithOptions(decimal: true), style: const TextStyle(fontSize: 15), onChanged: (_) => setState(() {}))])),
         ]),
         const SizedBox(height: 10),
         Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: AppColors.success.withOpacity(0.08), borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.success.withOpacity(0.2))), child: Row(children: [const Icon(Icons.calculate, color: AppColors.success, size: 18), const SizedBox(width: 8), Expanded(child: Text(_getGramsCalculation(item), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.success)))])),
       ] else ...[
-        // Regular trim: direct quantity
-        Row(children: [const Text('Qty per piece:', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)), const SizedBox(width: 10), SizedBox(width: 130, child: TextFormField(controller: item.qc, decoration: InputDecoration(suffixText: item.material!.unit, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.navy, width: 2)), contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14)), keyboardType: const TextInputType.numberWithOptions(decimal: true), style: const TextStyle(fontSize: 15)))]),
+        // Batch-based: qty per X pieces
+        Row(children: [
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Qty', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)), const SizedBox(height: 4), TextFormField(controller: item.batchQtyController, decoration: InputDecoration(hintText: '1', suffixText: item.material!.unit, border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.cardBorder)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.cardBorder)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.navy, width: 2)), contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10)), keyboardType: const TextInputType.numberWithOptions(decimal: true), style: const TextStyle(fontSize: 14), onChanged: (_) => setState(() {}))])),
+          const Padding(padding: EdgeInsets.symmetric(horizontal: 6), child: Text('per', style: TextStyle(fontSize: 13, color: AppColors.textSecondary))),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Pieces', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)), const SizedBox(height: 4), TextFormField(controller: item.batchSizeController, decoration: InputDecoration(hintText: '12', suffixText: 'pcs', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.cardBorder)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.cardBorder)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.navy, width: 2)), contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10)), keyboardType: TextInputType.number, style: const TextStyle(fontSize: 14), onChanged: (_) => setState(() {}))])),
+        ]),
+        const SizedBox(height: 10),
+        Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: AppColors.success.withOpacity(0.08), borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.success.withOpacity(0.2))), child: Row(children: [const Icon(Icons.calculate, color: AppColors.success, size: 18), const SizedBox(width: 8), Expanded(child: Text(_getBatchCalculation(item), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.success)))])),
       ],
     ],
   ])));
@@ -289,6 +287,17 @@ class _AddProductSheetState extends State<AddProductSheet> {
     return 'Enter grams to calculate kg per piece';
   }
 
+  String _getBatchCalculation(_RecipeItemEntry item) {
+    final qty = double.tryParse(item.batchQtyController.text);
+    final size = double.tryParse(item.batchSizeController.text);
+    if (qty != null && size != null && qty > 0 && size > 0) {
+      final perPiece = qty / size;
+      item.qc.text = perPiece.toStringAsFixed(6);
+      return '$qty ${item.material?.unit ?? ''} per $size pieces = ${perPiece.toStringAsFixed(4)} per piece';
+    }
+    return 'Enter qty and batch size to calculate';
+  }
+
   Widget _buildSizeCard(int i, TextEditingController c) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.cardBorder)), child: Row(children: [Expanded(child: TextFormField(controller: c, decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)), labelText: 'Size Name', hintText: 'Small, Medium, Large', isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10)))), if (_sizes.length > 1 || _edit) GestureDetector(onTap: () => _remSize(i), child: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: AppColors.error.withOpacity(0.08), borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.close_rounded, color: AppColors.error, size: 18)))])));
 
   Widget _lbl(String t) => Text(t, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary));
@@ -296,7 +305,7 @@ class _AddProductSheetState extends State<AddProductSheet> {
   InputDecoration _dec(String? h) => InputDecoration(hintText: h, hintStyle: TextStyle(color: AppColors.textSecondary.withOpacity(0.5)), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.cardBorder)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.cardBorder)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.navy, width: 2)), contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14));
 
   @override
-  void dispose() { _nc.dispose(); _pc.dispose(); for (var c in _sizes) c.dispose(); for (var item in _recipe) { item.qc.dispose(); item.lengthController.dispose(); item.widthController.dispose(); item.gramsController.dispose(); } super.dispose(); }
+  void dispose() { _nc.dispose(); _pc.dispose(); for (var c in _sizes) c.dispose(); for (var item in _recipe) { item.qc.dispose(); item.lengthController.dispose(); item.widthController.dispose(); item.gramsController.dispose(); item.batchQtyController.dispose(); item.batchSizeController.dispose(); } super.dispose(); }
 }
 
 class _RecipeItemEntry {
@@ -305,8 +314,12 @@ class _RecipeItemEntry {
   final TextEditingController lengthController;
   final TextEditingController widthController;
   final TextEditingController gramsController;
-  _RecipeItemEntry({this.material, required this.qc, TextEditingController? lengthController, TextEditingController? widthController, TextEditingController? gramsController})
+  final TextEditingController batchQtyController;
+  final TextEditingController batchSizeController;
+  _RecipeItemEntry({this.material, required this.qc, TextEditingController? lengthController, TextEditingController? widthController, TextEditingController? gramsController, TextEditingController? batchQtyController, TextEditingController? batchSizeController})
       : lengthController = lengthController ?? TextEditingController(text: '0.35'),
         widthController = widthController ?? TextEditingController(text: '1.50'),
-        gramsController = gramsController ?? TextEditingController(text: '15');
+        gramsController = gramsController ?? TextEditingController(text: '15'),
+        batchQtyController = batchQtyController ?? TextEditingController(text: '1'),
+        batchSizeController = batchSizeController ?? TextEditingController(text: '12');
 }
