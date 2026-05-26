@@ -2,11 +2,11 @@ import '../core/database/database_helper.dart';
 import '../models/production_log_model.dart';
 import '../models/material_model.dart';
 
-/// Handles recording production runs, deducting inventory, and reporting financial summaries.
+/// Handles recording production runs, deducting inventory, and unified reporting.
 class ProductionService {
   final DatabaseHelper _db = DatabaseHelper();
 
-  /// Record a production run. This deducts all materials atomically.
+  /// Record a production run with atomic deductions.
   Future<ProductionLogModel> recordProduction({
     required int productId,
     required String productName,
@@ -22,21 +22,17 @@ class ProductionService {
     final db = await _db.database;
 
     return await db.transaction((txn) async {
-      // Fetch all material categories for stock check
       for (var entry in materialsToDeduct.entries) {
         final materialId = entry.key;
         final deductQty = entry.value;
 
         final result = await txn.query('materials',
             columns: ['currentStock', 'category'],
-            where: 'id = ?',
-            whereArgs: [materialId]);
+            where: 'id = ?', whereArgs: [materialId]);
 
         if (result.isEmpty) throw Exception('Material ID $materialId not found');
 
         final category = result.first['category'] as String? ?? '';
-
-        // Skip stock check for Labor and Other (they are monthly expenses, not physical stock)
         if (category == 'Labor' || category == 'Other') continue;
 
         final currentStock = (result.first['currentStock'] as num).toDouble();
@@ -45,7 +41,6 @@ class ProductionService {
         }
       }
 
-      // Deduct all materials (skip Labor/Other)
       for (var entry in materialsToDeduct.entries) {
         final materialId = entry.key;
         final deductQty = entry.value;
@@ -53,7 +48,6 @@ class ProductionService {
         final catResult = await txn.query('materials',
             columns: ['category'], where: 'id = ?', whereArgs: [materialId]);
         final category = catResult.isNotEmpty ? (catResult.first['category'] as String? ?? '') : '';
-
         if (category == 'Labor' || category == 'Other') continue;
 
         await txn.rawUpdate(
@@ -62,7 +56,6 @@ class ProductionService {
         );
       }
 
-      // Build materials used summary with categories
       final materialsSummary = materialsToDeduct.entries.map((e) {
         final name = materialNames[e.key] ?? 'Unknown';
         final cat = materialCategories?[e.key] ?? 'Unknown';
@@ -105,57 +98,46 @@ class ProductionService {
     return maps.map((map) => ProductionLogModel.fromMap(map)).toList();
   }
 
-  /// Get profit summary factoring in both production metrics and separate operational expense payments.
+  /// REAL-TIME INTERCEPTION: Profit summary includes expense payments immediately.
   Future<Map<String, double>> getProfitSummary({
     required DateTime from,
     required DateTime to,
   }) async {
     final db = await _db.database;
-    
-    // 1. Get raw manufacturing totals
-    final productionResult = await db.rawQuery('''
+
+    // Production revenue and cost
+    final prodResult = await db.rawQuery('''
       SELECT COALESCE(SUM(totalRevenue), 0) as totalRevenue,
-             COALESCE(SUM(totalCost), 0) as productionCost,
+             COALESCE(SUM(totalCost), 0) as totalCost,
              COUNT(*) as totalBatches
       FROM production_logs WHERE producedAt >= ? AND producedAt <= ?
     ''', [from.toIso8601String(), to.toIso8601String()]);
 
-    // 2. Get independent operational expense payments total
-    final expensesResult = await db.rawQuery('''
-      SELECT COALESCE(SUM(amount), 0) as totalExpenses
+    // Expense payments intercept: directly add to totalCost
+    final expenseResult = await db.rawQuery('''
+      SELECT COALESCE(SUM(amount), 0) as expenseTotal
       FROM expense_payments WHERE paidAt >= ? AND paidAt <= ?
     ''', [from.toIso8601String(), to.toIso8601String()]);
 
-    double totalRevenue = 0;
-    double productionCost = 0;
-    double totalBatches = 0;
-    double totalExpenses = 0;
+    final prodRevenue = (prodResult.first['totalRevenue'] as num).toDouble();
+    final prodCost = (prodResult.first['totalCost'] as num).toDouble();
+    final expenseCost = (expenseResult.first['expenseTotal'] as num).toDouble();
+    final totalBatches = (prodResult.first['totalBatches'] as num).toDouble();
 
-    if (productionResult.isNotEmpty) {
-      final row = productionResult.first;
-      totalRevenue = (row['totalRevenue'] as num).toDouble();
-      productionCost = (row['productionCost'] as num).toDouble();
-      totalBatches = (row['totalBatches'] as num).toDouble();
-    }
-
-    if (expensesResult.isNotEmpty) {
-      totalExpenses = (expensesResult.first['totalExpenses'] as num).toDouble();
-    }
-
-    // Combined financial metrics
-    final totalCost = productionCost + totalExpenses;
-    final netProfit = totalRevenue - totalCost;
+    final totalCost = prodCost + expenseCost;
+    final netProfit = prodRevenue - totalCost;
 
     return {
-      'totalRevenue': totalRevenue,
+      'totalRevenue': prodRevenue,
       'totalCost': totalCost,
       'netProfit': netProfit,
       'totalBatches': totalBatches,
-      'operationalExpenses': totalExpenses,
+      'expenseCost': expenseCost,
+      'productionCost': prodCost,
     };
   }
 
-  /// Get comprehensive cost breakdown by material category and operational expenses for a date range.
+  /// Get cost breakdown by material category for a date range
   Future<Map<String, double>> getCostBreakdown({
     required DateTime from,
     required DateTime to,
@@ -163,12 +145,10 @@ class ProductionService {
     final db = await _db.database;
     final logs = await getLogs(from: from, to: to);
 
-    // Initialize base categories map
     final breakdown = <String, double>{
       'Fabric': 0, 'Trim': 0, 'Thread': 0, 'Packaging': 0, 'Labor': 0, 'Other': 0,
     };
 
-    // 1. Accumulate costs from historical production runs (materials used)
     for (var log in logs) {
       final materialsStr = log.materialsUsedJson;
       if (materialsStr.isEmpty) continue;
@@ -190,23 +170,99 @@ class ProductionService {
       }
     }
 
-    // 2. Accumulate costs from operational expense payments
-    final payments = await db.query(
-      'expense_payments',
-      where: 'paidAt >= ? AND paidAt <= ?',
-      whereArgs: [from.toIso8601String(), to.toIso8601String()],
-    );
-
+    // Include expense payments
+    final payments = await db.query('expense_payments', where: 'paidAt >= ? AND paidAt <= ?', whereArgs: [from.toIso8601String(), to.toIso8601String()]);
     for (var p in payments) {
-      final category = p['category'] as String;
-      final amount = (p['amount'] as num).toDouble();
-      
-      // Aggregate into existing categories or dynamically add new ones (e.g. Rent, Utilities)
-      breakdown[category] = (breakdown[category] ?? 0) + amount;
+      final cat = p['category'] as String;
+      final amt = (p['amount'] as num).toDouble();
+      breakdown[cat] = (breakdown[cat] ?? 0) + amt;
     }
 
     return breakdown;
   }
+
+  /// UNIFIED CHRONOLOGICAL AUDIT TRAIL
+  /// Combines material creation, production logs, and expense payments
+  /// into a single date-sorted timeline of all financial activity.
+  Future<List<AuditEntry>> getDetailedAuditTrail({DateTime? from, DateTime? to}) async {
+    final db = await _db.database;
+    final entries = <AuditEntry>[];
+
+    // 1. Material creation logs (inventory additions)
+    String matWhere = '1=1';
+    List<dynamic> matArgs = [];
+    if (from != null) { matWhere += ' AND createdAt >= ?'; matArgs.add(from.toIso8601String()); }
+    if (to != null) { matWhere += ' AND createdAt <= ?'; matArgs.add(to.toIso8601String()); }
+    final materials = await db.query('materials', where: matWhere, whereArgs: matArgs);
+    for (var m in materials) {
+      entries.add(AuditEntry(
+        date: DateTime.parse(m['createdAt'] as String),
+        type: 'Inventory',
+        description: 'Material Added: ${m['name']}',
+        amount: -((m['currentStock'] as num).toDouble() * (m['costPerUnit'] as num).toDouble()),
+        category: m['category'] as String? ?? '',
+        details: '${(m['currentStock'] as num).toDouble()} ${m['unit']} @ Br ${(m['costPerUnit'] as num).toDouble()}/${m['unit']}',
+      ));
+    }
+
+    // 2. Production logs (manufacturing)
+    String prodWhere = '1=1';
+    List<dynamic> prodArgs = [];
+    if (from != null) { prodWhere += ' AND producedAt >= ?'; prodArgs.add(from.toIso8601String()); }
+    if (to != null) { prodWhere += ' AND producedAt <= ?'; prodArgs.add(to.toIso8601String()); }
+    final productions = await db.query('production_logs', where: prodWhere, whereArgs: prodArgs);
+    for (var p in productions) {
+      entries.add(AuditEntry(
+        date: DateTime.parse(p['producedAt'] as String),
+        type: 'Production',
+        description: 'Produced: ${p['productName']} (${p['sizeName']})',
+        amount: (p['netProfit'] as num).toDouble(),
+        category: 'Production',
+        details: '${p['quantityProduced']} pcs | Rev: Br ${(p['totalRevenue'] as num).toDouble().toStringAsFixed(0)} | Cost: Br ${(p['totalCost'] as num).toDouble().toStringAsFixed(0)}',
+      ));
+    }
+
+    // 3. Expense payments
+    String expWhere = '1=1';
+    List<dynamic> expArgs = [];
+    if (from != null) { expWhere += ' AND paidAt >= ?'; expArgs.add(from.toIso8601String()); }
+    if (to != null) { expWhere += ' AND paidAt <= ?'; expArgs.add(to.toIso8601String()); }
+    final expenses = await db.query('expense_payments', where: expWhere, whereArgs: expArgs);
+    for (var e in expenses) {
+      final notes = e['notes'] as String? ?? '';
+      entries.add(AuditEntry(
+        date: DateTime.parse(e['paidAt'] as String),
+        type: 'Expense',
+        description: '${e['name']}${notes.isNotEmpty ? " - $notes" : ""}',
+        amount: -((e['amount'] as num).toDouble()),
+        category: e['category'] as String? ?? '',
+        details: 'Br ${(e['amount'] as num).toDouble().toStringAsFixed(2)}',
+      ));
+    }
+
+    // Sort descending by date
+    entries.sort((a, b) => b.date.compareTo(a.date));
+    return entries;
+  }
+}
+
+/// Unified audit trail entry model
+class AuditEntry {
+  final DateTime date;
+  final String type; // 'Inventory', 'Production', 'Expense'
+  final String description;
+  final double amount; // Positive for profit, negative for cost
+  final String category;
+  final String details;
+
+  AuditEntry({
+    required this.date,
+    required this.type,
+    required this.description,
+    required this.amount,
+    required this.category,
+    required this.details,
+  });
 }
 
 extension ProductionLogModelExtension on ProductionLogModel {

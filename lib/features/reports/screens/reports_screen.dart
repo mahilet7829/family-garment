@@ -15,6 +15,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Map<String, double> _monthSummary = {};
   Map<String, double> _costBreakdown = {};
   List<Map<String, dynamic>> _monthHistory = [];
+  List<AuditEntry> _auditTrail = [];
   DateTime _selectedMonth = DateTime.now();
   bool _isLoading = true;
 
@@ -29,6 +30,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
       _monthSummary = await _ps.getProfitSummary(from: from, to: to);
       _costBreakdown = await _ps.getCostBreakdown(from: from, to: to);
+      _auditTrail = await _ps.getDetailedAuditTrail(from: from, to: to);
 
       // Build history for last 12 months
       _monthHistory = [];
@@ -79,6 +81,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
         const SizedBox(height: 20),
         _buildCostBreakdownCard(),
         const SizedBox(height: 20),
+        _buildAuditTrailSection(),
+        const SizedBox(height: 20),
         _buildHistorySection(),
         const SizedBox(height: 20),
       ]))),
@@ -97,6 +101,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final profit = _monthSummary['netProfit'] ?? 0;
     final revenue = _monthSummary['totalRevenue'] ?? 0;
     final cost = _monthSummary['totalCost'] ?? 0;
+    final expenseCost = _monthSummary['expenseCost'] ?? 0;
+    final productionCost = _monthSummary['productionCost'] ?? 0;
     final margin = revenue > 0 ? (profit / revenue * 100) : 0.0;
 
     return Card(elevation: 1, shadowColor: AppColors.navy.withOpacity(0.06), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)), child: Padding(padding: const EdgeInsets.all(24), child: Column(children: [
@@ -114,8 +120,22 @@ class _ReportsScreenState extends State<ReportsScreen> {
       Row(children: [
         Expanded(child: _miniStat('Revenue', revenue, AppColors.success, Icons.arrow_upward_rounded)),
         Container(width: 1, height: 40, color: AppColors.cardBorder),
-        Expanded(child: _miniStat('Cost', cost, AppColors.error, Icons.arrow_downward_rounded)),
+        Expanded(child: _miniStat('Total Cost', cost, AppColors.error, Icons.arrow_downward_rounded)),
       ]),
+      if (expenseCost > 0 || productionCost > 0) ...[
+        const SizedBox(height: 12),
+        Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(12)), child: Row(children: [
+          Expanded(child: Column(children: [
+            Text(CurrencyFormatter.format(productionCost), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.navy)),
+            const Text('Production', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+          ])),
+          Container(width: 1, height: 30, color: AppColors.cardBorder),
+          Expanded(child: Column(children: [
+            Text(CurrencyFormatter.format(expenseCost), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.red)),
+            const Text('Expenses', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+          ])),
+        ])),
+      ],
     ])));
   }
 
@@ -164,6 +184,64 @@ class _ReportsScreenState extends State<ReportsScreen> {
     Row(children: [Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)), const SizedBox(width: 8), Text(label, style: TextStyle(fontSize: bold ? 14 : 12, fontWeight: bold ? FontWeight.w700 : FontWeight.w500, color: AppColors.textSecondary))]),
     Text(CurrencyFormatter.format(amount), style: TextStyle(fontSize: bold ? 14 : 12, fontWeight: bold ? FontWeight.w700 : FontWeight.w600, color: color)),
   ]));
+
+  // ========== UNIFIED AUDIT TRAIL SECTION ==========
+  Widget _buildAuditTrailSection() {
+    return Card(elevation: 1, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)), child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: AppColors.navy.withOpacity(0.1), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.receipt_long, color: AppColors.navy, size: 20)),
+        const SizedBox(width: 10),
+        const Text('AUDIT TRAIL', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.navy, letterSpacing: 0.5)),
+        const Spacer(),
+        Text('${_auditTrail.length} entries', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+      ]),
+      const SizedBox(height: 12),
+      if (_auditTrail.isEmpty)
+        Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(12)), child: const Row(children: [Icon(Icons.info_outline, color: AppColors.textSecondary, size: 18), SizedBox(width: 8), Text('No transactions this month', style: TextStyle(color: AppColors.textSecondary))]))
+      else
+        ..._auditTrail.take(20).map((entry) => Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.cardBorder)),
+            child: Row(children: [
+              // Type icon
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: entry.type == 'Production' ? AppColors.success.withOpacity(0.1) : entry.type == 'Expense' ? AppColors.error.withOpacity(0.1) : AppColors.navy.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  entry.type == 'Production' ? Icons.factory : entry.type == 'Expense' ? Icons.monetization_on : Icons.inventory_2,
+                  size: 16,
+                  color: entry.type == 'Production' ? AppColors.success : entry.type == 'Expense' ? AppColors.error : AppColors.navy,
+                ),
+              ),
+              const SizedBox(width: 10),
+              // Description & details
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(entry.description, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 2),
+                Text(entry.details, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary), maxLines: 2, overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 2),
+                Text(_formatAuditDate(entry.date), style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+              ])),
+              const SizedBox(width: 8),
+              // Amount
+              Text(
+                CurrencyFormatter.format(entry.amount),
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: entry.amount >= 0 ? AppColors.success : AppColors.error),
+              ),
+            ]),
+          ),
+        )),
+    ])));
+  }
+
+  String _formatAuditDate(DateTime d) {
+    return '${d.day}/${d.month}/${d.year} ${d.hour}:${d.minute.toString().padLeft(2, '0')}';
+  }
 
   Widget _buildHistorySection() {
     return Card(elevation: 1, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)), child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

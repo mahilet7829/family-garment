@@ -2,6 +2,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
 /// Singleton database helper for the entire app.
+/// Version 5: Ethiopian calendar support, expense metadata, audit trail.
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   factory DatabaseHelper() => _instance;
@@ -21,7 +22,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -106,18 +107,19 @@ class DatabaseHelper {
       )
     ''');
 
-    // Expenses table
+    // Expenses table with frequency support
     await db.execute('''
       CREATE TABLE expenses (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         category TEXT NOT NULL,
         monthlyCost REAL NOT NULL DEFAULT 0,
+        expenseFrequency TEXT DEFAULT 'monthly',
         createdAt TEXT NOT NULL
       )
     ''');
 
-    // Expense payments table
+    // Expense payments table with notes
     await db.execute('''
       CREATE TABLE expense_payments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -125,6 +127,7 @@ class DatabaseHelper {
         name TEXT NOT NULL,
         category TEXT NOT NULL,
         amount REAL NOT NULL,
+        notes TEXT DEFAULT '',
         paidAt TEXT NOT NULL,
         FOREIGN KEY (expenseId) REFERENCES expenses(id) ON DELETE CASCADE
       )
@@ -138,6 +141,7 @@ class DatabaseHelper {
     await db.execute('CREATE INDEX idx_production_logs_product ON production_logs(productId)');
     await db.execute('CREATE INDEX idx_production_logs_date ON production_logs(producedAt)');
     await db.execute('CREATE INDEX idx_expense_payments_date ON expense_payments(paidAt)');
+    await db.execute('CREATE INDEX idx_expenses_category ON expenses(category)');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -157,5 +161,24 @@ class DatabaseHelper {
       } catch (_) {}
       try { await db.execute('CREATE INDEX IF NOT EXISTS idx_expense_payments_date ON expense_payments(paidAt)'); } catch (_) {}
     }
+    if (oldVersion < 5) {
+      try { await db.execute('ALTER TABLE expenses ADD COLUMN expenseFrequency TEXT DEFAULT "monthly"'); } catch (_) {}
+      try { await db.execute('ALTER TABLE expense_payments ADD COLUMN notes TEXT DEFAULT ""'); } catch (_) {}
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category)'); } catch (_) {}
+    }
+  }
+
+  /// Ethiopian calendar helper: Get the current Ethiopian date string
+  static String getEthiopianDateString(DateTime gregorian) {
+    // Simplified Ethiopian calendar offset (Ginbot 30 = around June 7 Gregorian)
+    // For production, use a proper Ethiopian calendar package
+    const months = [
+      'Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit',
+      'Megabit', 'Miazia', 'Ginbot', 'Sene', 'Hamle', 'Nehase', 'Pagume'
+    ];
+    // Ginbot 30, 2016 ≈ June 7, 2024. Adjust offset as needed.
+    final ethDate = gregorian.subtract(const Duration(days: 2833)); // approx 7 years + offset
+    final year = ethDate.year - 7; // Rough Ethiopian year
+    return '${months[gregorian.month - 1]} ${gregorian.day}, $year';
   }
 }
