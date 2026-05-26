@@ -72,7 +72,7 @@ class _MainScaffoldState extends State<MainScaffold> {
               icon: Icon(Icons.bar_chart_outlined),
               activeIcon: Icon(Icons.bar_chart),
               label: 'Reports',
-            ),
+            ),a\
           ],
         ),
       ),
