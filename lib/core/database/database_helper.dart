@@ -21,7 +21,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -52,6 +52,8 @@ class DatabaseHelper {
         category TEXT NOT NULL,
         sellingPrice REAL NOT NULL,
         imagePaths TEXT DEFAULT '',
+        soldAs TEXT DEFAULT '',
+        piecesPerPackage INTEGER DEFAULT 1,
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL
       )
@@ -121,10 +123,23 @@ class DatabaseHelper {
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
-      // Add imagePaths column if it doesn't exist
       try {
         await db.execute(
             'ALTER TABLE products ADD COLUMN imagePaths TEXT DEFAULT ""');
+      } catch (e) {
+        // Column might already exist, ignore
+      }
+    }
+    if (oldVersion < 3) {
+      try {
+        await db.execute(
+            'ALTER TABLE products ADD COLUMN soldAs TEXT DEFAULT ""');
+      } catch (e) {
+        // Column might already exist, ignore
+      }
+      try {
+        await db.execute(
+            'ALTER TABLE products ADD COLUMN piecesPerPackage INTEGER DEFAULT 1');
       } catch (e) {
         // Column might already exist, ignore
       }
