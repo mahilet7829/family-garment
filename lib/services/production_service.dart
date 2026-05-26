@@ -2,7 +2,7 @@ import '../core/database/database_helper.dart';
 import '../models/production_log_model.dart';
 import '../models/material_model.dart';
 
-/// Handles recording production runs and deducting inventory.
+/// Handles recording production runs, deducting inventory, and reporting financial summaries.
 class ProductionService {
   final DatabaseHelper _db = DatabaseHelper();
 
@@ -105,32 +105,57 @@ class ProductionService {
     return maps.map((map) => ProductionLogModel.fromMap(map)).toList();
   }
 
+  /// Get profit summary factoring in both production metrics and separate operational expense payments.
   Future<Map<String, double>> getProfitSummary({
     required DateTime from,
     required DateTime to,
   }) async {
     final db = await _db.database;
-    final result = await db.rawQuery('''
+    
+    // 1. Get raw manufacturing totals
+    final productionResult = await db.rawQuery('''
       SELECT COALESCE(SUM(totalRevenue), 0) as totalRevenue,
-             COALESCE(SUM(totalCost), 0) as totalCost,
-             COALESCE(SUM(netProfit), 0) as netProfit,
+             COALESCE(SUM(totalCost), 0) as productionCost,
              COUNT(*) as totalBatches
       FROM production_logs WHERE producedAt >= ? AND producedAt <= ?
     ''', [from.toIso8601String(), to.toIso8601String()]);
 
-    if (result.isNotEmpty) {
-      final row = result.first;
-      return {
-        'totalRevenue': (row['totalRevenue'] as num).toDouble(),
-        'totalCost': (row['totalCost'] as num).toDouble(),
-        'netProfit': (row['netProfit'] as num).toDouble(),
-        'totalBatches': (row['totalBatches'] as num).toDouble(),
-      };
+    // 2. Get independent operational expense payments total
+    final expensesResult = await db.rawQuery('''
+      SELECT COALESCE(SUM(amount), 0) as totalExpenses
+      FROM expense_payments WHERE paidAt >= ? AND paidAt <= ?
+    ''', [from.toIso8601String(), to.toIso8601String()]);
+
+    double totalRevenue = 0;
+    double productionCost = 0;
+    double totalBatches = 0;
+    double totalExpenses = 0;
+
+    if (productionResult.isNotEmpty) {
+      final row = productionResult.first;
+      totalRevenue = (row['totalRevenue'] as num).toDouble();
+      productionCost = (row['productionCost'] as num).toDouble();
+      totalBatches = (row['totalBatches'] as num).toDouble();
     }
-    return {'totalRevenue': 0, 'totalCost': 0, 'netProfit': 0, 'totalBatches': 0};
+
+    if (expensesResult.isNotEmpty) {
+      totalExpenses = (expensesResult.first['totalExpenses'] as num).toDouble();
+    }
+
+    // Combined financial metrics
+    final totalCost = productionCost + totalExpenses;
+    final netProfit = totalRevenue - totalCost;
+
+    return {
+      'totalRevenue': totalRevenue,
+      'totalCost': totalCost,
+      'netProfit': netProfit,
+      'totalBatches': totalBatches,
+      'operationalExpenses': totalExpenses,
+    };
   }
 
-  /// Get cost breakdown by material category for a date range
+  /// Get comprehensive cost breakdown by material category and operational expenses for a date range.
   Future<Map<String, double>> getCostBreakdown({
     required DateTime from,
     required DateTime to,
@@ -138,18 +163,17 @@ class ProductionService {
     final db = await _db.database;
     final logs = await getLogs(from: from, to: to);
 
+    // Initialize base categories map
     final breakdown = <String, double>{
       'Fabric': 0, 'Trim': 0, 'Thread': 0, 'Packaging': 0, 'Labor': 0, 'Other': 0,
     };
 
+    // 1. Accumulate costs from historical production runs (materials used)
     for (var log in logs) {
       final materialsStr = log.materialsUsedJson;
       if (materialsStr.isEmpty) continue;
 
       final entries = materialsStr.split(',');
-      final totalCost = log.totalCost;
-      if (totalCost <= 0) continue;
-
       for (var entry in entries) {
         final parts = entry.split('|');
         if (parts.length >= 3) {
@@ -165,6 +189,22 @@ class ProductionService {
         }
       }
     }
+
+    // 2. Accumulate costs from operational expense payments
+    final payments = await db.query(
+      'expense_payments',
+      where: 'paidAt >= ? AND paidAt <= ?',
+      whereArgs: [from.toIso8601String(), to.toIso8601String()],
+    );
+
+    for (var p in payments) {
+      final category = p['category'] as String;
+      final amount = (p['amount'] as num).toDouble();
+      
+      // Aggregate into existing categories or dynamically add new ones (e.g. Rent, Utilities)
+      breakdown[category] = (breakdown[category] ?? 0) + amount;
+    }
+
     return breakdown;
   }
 }

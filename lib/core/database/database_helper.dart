@@ -21,7 +21,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 4, // Bumped to version 4
+      version: 4,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -71,7 +71,7 @@ class DatabaseHelper {
       )
     ''');
 
-    // Recipe items table (denormalized for fast display)
+    // Recipe items table
     await db.execute('''
       CREATE TABLE recipe_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -130,7 +130,7 @@ class DatabaseHelper {
       )
     ''');
 
-    // Create indexes for faster queries
+    // Indexes
     await db.execute('CREATE INDEX idx_materials_category ON materials(category)');
     await db.execute('CREATE INDEX idx_products_category ON products(category)');
     await db.execute('CREATE INDEX idx_size_variants_product ON size_variants(productId)');
@@ -142,81 +142,20 @@ class DatabaseHelper {
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
-      try {
-        await db.execute('ALTER TABLE products ADD COLUMN imagePaths TEXT DEFAULT ""');
-      } catch (_) {}
+      try { await db.execute('ALTER TABLE products ADD COLUMN imagePaths TEXT DEFAULT ""'); } catch (_) {}
     }
     if (oldVersion < 3) {
-      try {
-        await db.execute('ALTER TABLE products ADD COLUMN soldAs TEXT DEFAULT ""');
-      } catch (_) {}
-      try {
-        await db.execute('ALTER TABLE products ADD COLUMN piecesPerPackage INTEGER DEFAULT 1');
-      } catch (_) {}
+      try { await db.execute('ALTER TABLE products ADD COLUMN soldAs TEXT DEFAULT ""'); } catch (_) {}
+      try { await db.execute('ALTER TABLE products ADD COLUMN piecesPerPackage INTEGER DEFAULT 1'); } catch (_) {}
     }
     if (oldVersion < 4) {
-      try { 
-        await db.execute('''
-          CREATE TABLE expenses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, 
-            name TEXT NOT NULL, 
-            category TEXT NOT NULL, 
-            monthlyCost REAL NOT NULL DEFAULT 0, 
-            createdAt TEXT NOT NULL
-          )
-        '''); 
-      } catch (_) {}
-      
-      try { 
-        await db.execute('''
-          CREATE TABLE expense_payments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, 
-            expenseId INTEGER NOT NULL, 
-            name TEXT NOT NULL, 
-            category TEXT NOT NULL, 
-            amount REAL NOT NULL, 
-            paidAt TEXT NOT NULL, 
-            FOREIGN KEY (expenseId) REFERENCES expenses(id) ON DELETE CASCADE
-          )
-        '''); 
-      } catch (_) {}
-
       try {
-        await db.execute('CREATE INDEX idx_expense_payments_date ON expense_payments(paidAt)');
+        await db.execute('CREATE TABLE IF NOT EXISTS expenses (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, category TEXT NOT NULL, monthlyCost REAL NOT NULL DEFAULT 0, createdAt TEXT NOT NULL)');
       } catch (_) {}
+      try {
+        await db.execute('CREATE TABLE IF NOT EXISTS expense_payments (id INTEGER PRIMARY KEY AUTOINCREMENT, expenseId INTEGER NOT NULL, name TEXT NOT NULL, category TEXT NOT NULL, amount REAL NOT NULL, paidAt TEXT NOT NULL, FOREIGN KEY (expenseId) REFERENCES expenses(id) ON DELETE CASCADE)');
+      } catch (_) {}
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_expense_payments_date ON expense_payments(paidAt)'); } catch (_) {}
     }
-  }
-
-  /// Calculates a combined breakdown of production costs and expense payments.
-  Future<Map<String, double>> getCostBreakdown(DateTime from, DateTime to) async {
-    final db = await database;
-    final Map<String, double> breakdown = {};
-
-    // 1. Gather manufacturing costs from production logs
-    final logs = await db.query(
-      'production_logs',
-      where: 'producedAt >= ? AND producedAt <= ?',
-      whereArgs: [from.toIso8601String(), to.toIso8601String()],
-    );
-    
-    for (var log in logs) {
-      final cost = (log['totalCost'] as num).toDouble();
-      breakdown['Manufacturing'] = (breakdown['Manufacturing'] ?? 0) + cost;
-    }
-
-    // 2. Gather operational costs from expense payments
-    final payments = await db.query(
-      'expense_payments', 
-      where: 'paidAt >= ? AND paidAt <= ?', 
-      whereArgs: [from.toIso8601String(), to.toIso8601String()],
-    );
-
-    for (var p in payments) {
-      final cat = p['category'] as String;
-      final amt = (p['amount'] as num).toDouble();
-      breakdown[cat] = (breakdown[cat] ?? 0) + amt;
-    }
-
-    return breakdown;
   }
 }
