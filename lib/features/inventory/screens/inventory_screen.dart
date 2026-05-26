@@ -49,9 +49,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           _filterChip('Fabric', 'Fabric'), const SizedBox(width: 8),
           _filterChip('Trim', 'Trim'), const SizedBox(width: 8),
           _filterChip('Thread', 'Thread'), const SizedBox(width: 8),
-          _filterChip('Packaging', 'Packaging'), const SizedBox(width: 8),
-          _filterChip('Labor', 'Labor'), const SizedBox(width: 8),
-          _filterChip('Other', 'Other'),
+          _filterChip('Packaging', 'Packaging'),
         ]))),
         Expanded(child: _isLoading ? const Center(child: CircularProgressIndicator()) : _materials.isEmpty ? _buildEmptyState() : ListView.builder(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), itemCount: _materials.length, itemBuilder: (_, i) => _materialListTile(_materials[i]))),
       ]),
@@ -72,7 +70,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   Widget _materialListTile(MaterialModel m) {
     final sc = m.currentStock <= 0 ? AppColors.error : m.currentStock < 5 ? AppColors.warning : AppColors.success;
-    final icon = m.category == 'Labor' ? Icons.people : m.category == 'Other' ? Icons.more_horiz : m.category == 'Thread' ? Icons.texture : Icons.inventory_2;
+    final icon = m.category == 'Thread' ? Icons.texture : Icons.inventory_2;
     return Card(margin: const EdgeInsets.only(bottom: 8), elevation: 1, shadowColor: AppColors.navy.withOpacity(0.05), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), child: InkWell(borderRadius: BorderRadius.circular(12), onTap: () => _openMaterialDetail(m), child: Padding(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12), child: Row(children: [
       Container(width: 44, height: 44, decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: sc.withOpacity(0.1), image: m.imagePath != null && File(m.imagePath!).existsSync() ? DecorationImage(image: FileImage(File(m.imagePath!)), fit: BoxFit.cover) : null), child: (m.imagePath == null || !File(m.imagePath!).existsSync()) ? Icon(icon, color: sc, size: 22) : null),
       const SizedBox(width: 12),
@@ -134,8 +132,8 @@ class _MaterialFormSheetState extends State<MaterialFormSheet> {
   File? _img; bool _saving = false;
   bool get _edit => widget.existing != null;
 
-  final List<String> _categories = ['Fabric', 'Trim', 'Thread', 'Packaging', 'Labor', 'Other'];
-  final List<String> _units = ['kg', 'grams', 'meters', 'pieces', 'cones', 'liters', 'hours', 'days', 'months'];
+  final List<String> _categories = ['Fabric', 'Trim', 'Thread', 'Packaging'];
+  final List<String> _units = ['kg', 'grams', 'meters', 'pieces', 'cones', 'liters'];
 
   @override
   void initState() {
@@ -180,10 +178,10 @@ class _MaterialFormSheetState extends State<MaterialFormSheet> {
       const SizedBox(height: 16), _lbl('Unit'), const SizedBox(height: 6),
       DropdownButtonFormField<String>(value: _unit, decoration: _dec(), items: _units.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(), onChanged: (v) { if (v != null) setState(() => _unit = v); }),
       const SizedBox(height: 16), _lbl('Name'), const SizedBox(height: 6),
-      TextFormField(controller: _nc, decoration: _dec(hint: _cat == 'Labor' ? 'e.g. Worker X Salary' : 'e.g. Cotton Jersey'), validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
+      TextFormField(controller: _nc, decoration: _dec(hint: 'e.g. Cotton Jersey'), validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
       const SizedBox(height: 16),
       if (_cat == 'Fabric') ...[_lbl('GSM (grams per m²)'), const SizedBox(height: 6), TextFormField(controller: _gc, decoration: _dec(hint: '180'), keyboardType: TextInputType.number), const SizedBox(height: 16)],
-      _lbl(_cat == 'Labor' || _cat == 'Other' ? 'Amount' : 'Stock Quantity'), const SizedBox(height: 6),
+      _lbl('Stock Quantity'), const SizedBox(height: 6),
       Row(children: [Expanded(child: TextFormField(controller: _sc, decoration: _dec(hint: '0'), keyboardType: TextInputType.number, validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null)), const SizedBox(width: 12), Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14), decoration: BoxDecoration(border: Border.all(color: AppColors.cardBorder), borderRadius: BorderRadius.circular(12), color: AppColors.background), child: Text(_unit, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)))]),
       const SizedBox(height: 16), _lbl('Cost per $_unit (Br)'), const SizedBox(height: 6),
       TextFormField(controller: _cc, decoration: _dec(hint: '0.00'), keyboardType: const TextInputType.numberWithOptions(decimal: true), validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
