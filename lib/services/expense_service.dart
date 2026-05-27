@@ -1,11 +1,8 @@
 import '../core/database/database_helper.dart';
 import '../models/expense_model.dart';
 
-/// Handles all CRUD for expenses and expense payments.
 class ExpenseService {
   final DatabaseHelper _db = DatabaseHelper();
-
-  // ========== EXPENSES ==========
 
   Future<int> createExpense(ExpenseModel expense) async {
     final db = await _db.database;
@@ -34,8 +31,6 @@ class ExpenseService {
     await db.delete('expense_payments', where: 'expenseId = ?', whereArgs: [id]);
     return await db.delete('expenses', where: 'id = ?', whereArgs: [id]);
   }
-
-  // ========== PAYMENTS ==========
 
   Future<int> createPayment(ExpensePaymentModel payment) async {
     final db = await _db.database;
