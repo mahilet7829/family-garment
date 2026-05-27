@@ -29,7 +29,6 @@ class DatabaseHelper {
   }
 
   Future<void> _onCreate(Database db, int version) async {
-    // Materials table
     await db.execute('''
       CREATE TABLE materials (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,7 +44,6 @@ class DatabaseHelper {
       )
     ''');
 
-    // Products table
     await db.execute('''
       CREATE TABLE products (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -60,7 +58,6 @@ class DatabaseHelper {
       )
     ''');
 
-    // Size variants table
     await db.execute('''
       CREATE TABLE size_variants (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -72,7 +69,6 @@ class DatabaseHelper {
       )
     ''');
 
-    // Recipe items table
     await db.execute('''
       CREATE TABLE recipe_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -90,7 +86,6 @@ class DatabaseHelper {
       )
     ''');
 
-    // Production log table
     await db.execute('''
       CREATE TABLE production_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -107,7 +102,6 @@ class DatabaseHelper {
       )
     ''');
 
-    // Expenses table with frequency support
     await db.execute('''
       CREATE TABLE expenses (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -119,7 +113,6 @@ class DatabaseHelper {
       )
     ''');
 
-    // Expense payments table with notes
     await db.execute('''
       CREATE TABLE expense_payments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -133,15 +126,14 @@ class DatabaseHelper {
       )
     ''');
 
-    // Indexes
-    await db.execute('CREATE INDEX idx_materials_category ON materials(category)');
-    await db.execute('CREATE INDEX idx_products_category ON products(category)');
-    await db.execute('CREATE INDEX idx_size_variants_product ON size_variants(productId)');
-    await db.execute('CREATE INDEX idx_recipe_items_product ON recipe_items(productId)');
-    await db.execute('CREATE INDEX idx_production_logs_product ON production_logs(productId)');
-    await db.execute('CREATE INDEX idx_production_logs_date ON production_logs(producedAt)');
-    await db.execute('CREATE INDEX idx_expense_payments_date ON expense_payments(paidAt)');
-    await db.execute('CREATE INDEX idx_expenses_category ON expenses(category)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_materials_category ON materials(category)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_products_category ON products(category)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_size_variants_product ON size_variants(productId)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_recipe_items_product ON recipe_items(productId)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_production_logs_product ON production_logs(productId)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_production_logs_date ON production_logs(producedAt)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_expense_payments_date ON expense_payments(paidAt)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category)');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -159,26 +151,52 @@ class DatabaseHelper {
       try {
         await db.execute('CREATE TABLE IF NOT EXISTS expense_payments (id INTEGER PRIMARY KEY AUTOINCREMENT, expenseId INTEGER NOT NULL, name TEXT NOT NULL, category TEXT NOT NULL, amount REAL NOT NULL, paidAt TEXT NOT NULL, FOREIGN KEY (expenseId) REFERENCES expenses(id) ON DELETE CASCADE)');
       } catch (_) {}
-      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_expense_payments_date ON expense_payments(paidAt)'); } catch (_) {}
     }
     if (oldVersion < 5) {
-      try { await db.execute('ALTER TABLE expenses ADD COLUMN expenseFrequency TEXT DEFAULT "monthly"'); } catch (_) {}
-      try { await db.execute('ALTER TABLE expense_payments ADD COLUMN notes TEXT DEFAULT ""'); } catch (_) {}
-      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category)'); } catch (_) {}
+      // Drop and recreate expenses table with new columns (since there's likely no data yet)
+      try {
+        await db.execute('DROP TABLE IF EXISTS expense_payments');
+        await db.execute('DROP TABLE IF EXISTS expenses');
+        await db.execute('''
+          CREATE TABLE expenses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            category TEXT NOT NULL,
+            monthlyCost REAL NOT NULL DEFAULT 0,
+            expenseFrequency TEXT DEFAULT 'monthly',
+            createdAt TEXT NOT NULL
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE expense_payments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            expenseId INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            category TEXT NOT NULL,
+            amount REAL NOT NULL,
+            notes TEXT DEFAULT '',
+            paidAt TEXT NOT NULL,
+            FOREIGN KEY (expenseId) REFERENCES expenses(id) ON DELETE CASCADE
+          )
+        ''');
+      } catch (_) {
+        // If drop fails, try ALTER as fallback
+        try { await db.execute('ALTER TABLE expenses ADD COLUMN expenseFrequency TEXT DEFAULT "monthly"'); } catch (_) {}
+        try { await db.execute('ALTER TABLE expense_payments ADD COLUMN notes TEXT DEFAULT ""'); } catch (_) {}
+      }
     }
+    // Recreate indexes
+    try { await db.execute('CREATE INDEX IF NOT EXISTS idx_expense_payments_date ON expense_payments(paidAt)'); } catch (_) {}
+    try { await db.execute('CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category)'); } catch (_) {}
   }
 
-  /// Ethiopian calendar helper: Get the current Ethiopian date string
   static String getEthiopianDateString(DateTime gregorian) {
-    // Simplified Ethiopian calendar offset (Ginbot 30 = around June 7 Gregorian)
-    // For production, use a proper Ethiopian calendar package
     const months = [
       'Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit',
       'Megabit', 'Miazia', 'Ginbot', 'Sene', 'Hamle', 'Nehase', 'Pagume'
     ];
-    // Ginbot 30, 2016 ≈ June 7, 2024. Adjust offset as needed.
-    final ethDate = gregorian.subtract(const Duration(days: 2833)); // approx 7 years + offset
-    final year = ethDate.year - 7; // Rough Ethiopian year
+    final ethDate = gregorian.subtract(const Duration(days: 2833));
+    final year = ethDate.year - 7;
     return '${months[gregorian.month - 1]} ${gregorian.day}, $year';
   }
 }
