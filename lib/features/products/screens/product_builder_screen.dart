@@ -95,12 +95,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   void initState() { super.initState(); _product = widget.product; _load(); }
   Future<void> _load() async {
     setState(() => _loading = true);
-    try {
-      final s = await _ps.getSizeVariants(_product.id!);
-      final r = await _ps.getRecipeItems(_product.id!);
-      final u = await _ps.getProductById(_product.id!);
-      if (mounted) setState(() { _sizes = s; _recipe = r; if (u != null) _product = u; _loading = false; });
-    } catch (e) { if (mounted) setState(() => _loading = false); }
+    try { final s = await _ps.getSizeVariants(_product.id!); final r = await _ps.getRecipeItems(_product.id!); final u = await _ps.getProductById(_product.id!); if (mounted) setState(() { _sizes = s; _recipe = r; if (u != null) _product = u; _loading = false; }); }
+    catch (e) { if (mounted) setState(() => _loading = false); }
   }
   void _edit() => showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (_) => AddProductSheet(onSaved: () { _load(); widget.onUpdated(); }, existing: _product, allMaterials: widget.allMaterials, allProducts: widget.allProducts)).then((_) { _load(); widget.onUpdated(); });
   Future<void> _delete() async {
@@ -110,17 +106,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   Widget _buildRecipeList() {
     if (_recipe.isEmpty) return const Text('No materials in recipe', style: TextStyle(color: AppColors.textSecondary));
     List<Widget> items = [];
-    for (var item in _recipe) {
-      items.add(Padding(padding: const EdgeInsets.only(bottom: 8), child: Row(children: [
-        Icon(Icons.circle, size: 8, color: item.isFabric ? AppColors.navy : AppColors.gold), const SizedBox(width: 10),
-        Expanded(child: Text(item.materialName, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14))),
-        Text('Br ${item.costPerUnit.toStringAsFixed(2)}/${item.unit}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-      ])));
-    }
+    for (var item in _recipe) { items.add(Padding(padding: const EdgeInsets.only(bottom: 8), child: Row(children: [Icon(Icons.circle, size: 8, color: item.isFabric ? AppColors.navy : AppColors.gold), const SizedBox(width: 10), Expanded(child: Text(item.materialName, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14))), Text('Br ${item.costPerUnit.toStringAsFixed(2)}/${item.unit}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12))]))); }
     return Column(children: items);
   }
   @override
-  Widget build(BuildContext context) { /* unchanged detail screen */ return Scaffold(backgroundColor: AppColors.background, appBar: AppBar(title: Text(_product.name, overflow: TextOverflow.ellipsis), backgroundColor: AppColors.navy, foregroundColor: AppColors.white, elevation: 0, actions: [IconButton(icon: const Icon(Icons.edit_outlined), onPressed: _edit), IconButton(icon: const Icon(Icons.delete_outline, color: AppColors.error), onPressed: _delete)]), body: _loading ? const Center(child: CircularProgressIndicator()) : SingleChildScrollView(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [Container(height: 200, decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.cardBorder)), child: _product.imagePaths.isNotEmpty && File(_product.imagePaths.first).existsSync() ? ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.file(File(_product.imagePaths.first), fit: BoxFit.cover)) : Center(child: Icon(Icons.checkroom, size: 56, color: AppColors.textSecondary.withOpacity(0.3)))), const SizedBox(height: 20), _infoCard(), const SizedBox(height: 20), _sizesCard(), const SizedBox(height: 20), _recipeCard(), const SizedBox(height: 20), Row(children: [Expanded(child: _btn('EDIT', Icons.edit_outlined, AppColors.navy, _edit)), const SizedBox(width: 12), Expanded(child: _btn('DELETE', Icons.delete_outline, AppColors.error, _delete))]), const SizedBox(height: 20)]))); }
+  Widget build(BuildContext context) {
+    return Scaffold(backgroundColor: AppColors.background, appBar: AppBar(title: Text(_product.name, overflow: TextOverflow.ellipsis), backgroundColor: AppColors.navy, foregroundColor: AppColors.white, elevation: 0, actions: [IconButton(icon: const Icon(Icons.edit_outlined), onPressed: _edit), IconButton(icon: const Icon(Icons.delete_outline, color: AppColors.error), onPressed: _delete)]), body: _loading ? const Center(child: CircularProgressIndicator()) : SingleChildScrollView(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Container(height: 200, decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.cardBorder)), child: _product.imagePaths.isNotEmpty && File(_product.imagePaths.first).existsSync() ? ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.file(File(_product.imagePaths.first), fit: BoxFit.cover)) : Center(child: Icon(Icons.checkroom, size: 56, color: AppColors.textSecondary.withOpacity(0.3)))),
+      const SizedBox(height: 20), _infoCard(), const SizedBox(height: 20), _sizesCard(), const SizedBox(height: 20), _recipeCard(), const SizedBox(height: 20),
+      Row(children: [Expanded(child: _btn('EDIT', Icons.edit_outlined, AppColors.navy, _edit)), const SizedBox(width: 12), Expanded(child: _btn('DELETE', Icons.delete_outline, AppColors.error, _delete))]),
+      const SizedBox(height: 20),
+    ])));
+  }
   Widget _infoCard() => Card(elevation: 1, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), child: Padding(padding: const EdgeInsets.all(20), child: Column(children: [_dr('Name', _product.name), _div(), _dr('Category', _product.category), _div(), _dr('Price', CurrencyFormatter.format(_product.sellingPrice)), _div(), if (_product.soldAs.isNotEmpty) ...[_dr('Sold As', _product.soldAs), _div()], _dr('Created', _product.createdAt.toString().substring(0, 10)), _div(), _dr('Updated', _product.updatedAt.toString().substring(0, 10))])));
   Widget _sizesCard() => Card(elevation: 1, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: AppColors.navy.withOpacity(0.1), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.straighten, color: AppColors.navy, size: 18)), const SizedBox(width: 10), const Text('SIZES', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.navy))]), const SizedBox(height: 12), _sizes.isEmpty ? const Text('No sizes added', style: TextStyle(color: AppColors.textSecondary)) : _buildSizesList()])));
   Widget _buildSizesList() { List<Widget> chips = []; for (var s in _sizes) chips.add(Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), decoration: BoxDecoration(color: AppColors.navy.withOpacity(0.05), borderRadius: BorderRadius.circular(10)), child: Text(s.sizeName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.navy)))); return Wrap(spacing: 8, runSpacing: 8, children: chips); }
@@ -150,31 +147,20 @@ class _AddProductSheetState extends State<AddProductSheet> {
   @override
   void initState() {
     super.initState();
-    if (_edit) {
-      final p = widget.existing!;
-      _nc.text = p.name; _pc.text = p.sellingPrice.toString(); _cat = p.category;
-      _sac.text = p.soldAs; _ppc.text = p.piecesPerPackage.toString();
-      if (p.imagePaths.isNotEmpty && File(p.imagePaths.first).existsSync()) _img = File(p.imagePaths.first);
-    } else {
-      _sizes.add(TextEditingController(text: 'Medium'));
-    }
+    if (_edit) { final p = widget.existing!; _nc.text = p.name; _pc.text = p.sellingPrice.toString(); _cat = p.category; _sac.text = p.soldAs; _ppc.text = p.piecesPerPackage.toString(); if (p.imagePaths.isNotEmpty && File(p.imagePaths.first).existsSync()) _img = File(p.imagePaths.first); }
+    else _sizes.add(TextEditingController(text: 'Medium'));
     _loadSizes(); _loadRecipe();
   }
 
-  Future<void> _loadSizes() async {
-    if (_edit) { final v = await _ps.getSizeVariants(widget.existing!.id!); for (var s in v) _sizes.add(TextEditingController(text: s.sizeName)); setState(() {}); }
-  }
+  Future<void> _loadSizes() async { if (_edit) { final v = await _ps.getSizeVariants(widget.existing!.id!); for (var s in v) _sizes.add(TextEditingController(text: s.sizeName)); setState(() {}); } }
 
   Future<void> _loadRecipe() async {
     if (_edit) {
       final items = await _ps.getRecipeItems(widget.existing!.id!);
       final variants = await _ps.getSizeVariants(widget.existing!.id!);
-      // Get the materialUsage from the first size variant (should be same for all)
       final mu = variants.isNotEmpty ? variants.first.materialUsage : <int, double>{};
-
       for (var item in items) {
         final m = widget.allMaterials.firstWhere((x) => x.id == item.materialId, orElse: () => MaterialModel(name: 'Unknown', category: 'Unknown', unit: 'pieces', currentStock: 0, costPerUnit: 0));
-        // Use the actual saved quantity from materialUsage, not '1'
         final savedQty = mu[item.materialId]?.toString() ?? '1';
         _recipe.add(_RecipeItemEntry(material: m, qc: TextEditingController(text: savedQty)));
       }
@@ -188,16 +174,7 @@ class _AddProductSheetState extends State<AddProductSheet> {
   void _remRecipe(int i) { _recipe[i].qc.dispose(); _recipe[i].lengthController.dispose(); _recipe[i].widthController.dispose(); _recipe[i].gramsController.dispose(); _recipe[i].batchQtyController.dispose(); _recipe[i].batchSizeController.dispose(); _recipe.removeAt(i); setState(() {}); }
   Future<void> _pick() async { try { final p = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 800, maxHeight: 800); if (p != null && mounted) setState(() => _img = File(p.path)); } catch (_) {} }
 
-  Map<int, double> _buildMU() {
-    final u = <int, double>{};
-    for (var item in _recipe) {
-      if (item.material != null) {
-        final qty = double.tryParse(item.qc.text) ?? 0.001; // Small default instead of 1.0
-        u[item.material!.id!] = qty > 0 ? qty : 0.001;
-      }
-    }
-    return u;
-  }
+  Map<int, double> _buildMU() { final u = <int, double>{}; for (var item in _recipe) { if (item.material != null) { final q = double.tryParse(item.qc.text) ?? 0.001; u[item.material!.id!] = q > 0 ? q : 0.001; } } return u; }
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return; if (_saving) return;
@@ -205,27 +182,19 @@ class _AddProductSheetState extends State<AddProductSheet> {
     if (n.isEmpty) { _err('Enter product name'); return; }
     if (pt.isEmpty) { _err('Enter selling price'); return; }
     final pr = double.tryParse(pt); if (pr == null) { _err('Price must be a number'); return; }
-    for (var p in widget.allProducts) { if (p.name.toLowerCase() == n.toLowerCase() && p.id != widget.existing?.id) { _err('A product with this name already exists'); return; } }
+    for (var p in widget.allProducts) { if (p.name.toLowerCase() == n.toLowerCase() && p.id != widget.existing?.id) { _err('Duplicate name'); return; } }
     setState(() => _saving = true);
     try {
       List<String> ips = [];
       if (_img != null) { final dd = await getApplicationDocumentsDirectory(); final dir = Directory('${dd.path}/images'); if (!await dir.exists()) await dir.create(recursive: true); ips.add((await _img!.copy('${dir.path}/product_${DateTime.now().millisecondsSinceEpoch}.jpg')).path); }
       else if (_edit && widget.existing!.imagePaths.isNotEmpty) ips = List.from(widget.existing!.imagePaths);
-      final sa = _sac.text.trim();
-      final pp = int.tryParse(_ppc.text.trim()) ?? 1;
+      final sa = _sac.text.trim(); final pp = int.tryParse(_ppc.text.trim()) ?? 1;
       int pid;
       if (_edit) { final p = widget.existing!.copyWith(name: n, category: _cat, sellingPrice: pr, imagePaths: ips, soldAs: sa, piecesPerPackage: pp); await _ps.updateProduct(p); pid = p.id!; for (var v in await _ps.getSizeVariants(pid)) await _ps.deleteSizeVariant(v.id!); await _ps.deleteAllRecipeItems(pid); }
       else pid = await _ps.createProduct(ProductModel(name: n, category: _cat, sellingPrice: pr, imagePaths: ips, soldAs: sa, piecesPerPackage: pp));
-
-      // Save recipe items FIRST
       for (var i = 0; i < _recipe.length; i++) { final item = _recipe[i]; if (item.material != null) await _ps.createRecipeItem(RecipeItemModel(productId: pid, materialId: item.material!.id!, materialName: item.material!.name, category: item.material!.category, gsm: item.material!.gsm, unit: item.material!.unit, costPerUnit: item.material!.costPerUnit, sortOrder: i)); }
-
-      // Build materialUsage from the qc values (which contain the real calculated amounts)
       final mu = _buildMU();
-
-      // Save size variants with the correct materialUsage
       for (var c in _sizes) { final sn = c.text.trim(); if (sn.isNotEmpty) await _ps.createSizeVariant(SizeVariantModel(productId: pid, sizeName: sn, materialUsage: mu)); }
-
       widget.onSaved();
       if (mounted) { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_edit ? 'Product updated' : 'Product created'), backgroundColor: AppColors.success, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)))); }
     } catch (e) { _err('Error: $e'); } finally { if (mounted) setState(() => _saving = false); }
@@ -275,7 +244,9 @@ class _AddProductSheetState extends State<AddProductSheet> {
         const SizedBox(height: 10),
         Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: AppColors.success.withOpacity(0.08), borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.success.withOpacity(0.2))), child: Row(children: [const Icon(Icons.calculate, color: AppColors.success, size: 18), const SizedBox(width: 8), Expanded(child: Text(_getFabricCalculation(item), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.success)))])),
       ] else if (item.material!.unit == 'kg') ...[
-        Row(children: [Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Grams per piece', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)), const SizedBox(height: 4), TextFormField(controller: item.gramsController, decoration: InputDecoration(hintText: 'e.g. 15', suffixText: 'g', border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.navy, width: 2)), contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14)), keyboardType: const TextInputType.numberWithOptions(decimal: true), style: const TextStyle(fontSize: 15), onChanged: (_) => setState(() {}))])]),
+        Row(children: [
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Grams per piece', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)), const SizedBox(height: 4), TextFormField(controller: item.gramsController, decoration: InputDecoration(hintText: 'e.g. 15', suffixText: 'g', border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cardBorder)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.navy, width: 2)), contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14)), keyboardType: const TextInputType.numberWithOptions(decimal: true), style: const TextStyle(fontSize: 15), onChanged: (_) => setState(() {}))])),
+        ]),
         const SizedBox(height: 10),
         Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: AppColors.success.withOpacity(0.08), borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.success.withOpacity(0.2))), child: Row(children: [const Icon(Icons.calculate, color: AppColors.success, size: 18), const SizedBox(width: 8), Expanded(child: Text(_getGramsCalculation(item), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.success)))])),
       ] else ...[
@@ -304,22 +275,14 @@ class _AddProductSheetState extends State<AddProductSheet> {
 
   String _getGramsCalculation(_RecipeItemEntry item) {
     final grams = double.tryParse(item.gramsController.text);
-    if (grams != null && grams > 0) {
-      final kg = grams / 1000;
-      item.qc.text = kg.toStringAsFixed(6);
-      return '$grams g = $kg kg per piece';
-    }
+    if (grams != null && grams > 0) { final kg = grams / 1000; item.qc.text = kg.toStringAsFixed(6); return '$grams g = $kg kg per piece'; }
     return 'Enter grams to calculate kg per piece';
   }
 
   String _getBatchCalculation(_RecipeItemEntry item) {
     final qty = double.tryParse(item.batchQtyController.text);
     final size = double.tryParse(item.batchSizeController.text);
-    if (qty != null && size != null && qty > 0 && size > 0) {
-      final perPiece = qty / size;
-      item.qc.text = perPiece.toStringAsFixed(6);
-      return '$qty ${item.material?.unit ?? ''} per $size pieces = ${perPiece.toStringAsFixed(4)} per piece';
-    }
+    if (qty != null && size != null && qty > 0 && size > 0) { final perPiece = qty / size; item.qc.text = perPiece.toStringAsFixed(6); return '$qty ${item.material?.unit ?? ''} per $size pieces = ${perPiece.toStringAsFixed(4)} per piece'; }
     return 'Enter qty and batch size to calculate';
   }
 
