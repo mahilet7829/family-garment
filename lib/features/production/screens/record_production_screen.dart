@@ -43,7 +43,7 @@ class _RecordProductionScreenState extends State<RecordProductionScreen> {
     setState(() {});
   }
 
-  Future<void> _recordProduction() async {
+    Future<void> _recordProduction() async {
     if (_selectedProduct == null || _selectedSize == null) { _showMessage('Please select a product and size', isError: true); return; }
     final quantity = int.tryParse(_quantityController.text);
     if (quantity == null || quantity <= 0) { _showMessage('Please enter a valid quantity', isError: true); return; }
@@ -57,10 +57,17 @@ class _RecordProductionScreenState extends State<RecordProductionScreen> {
       final materialNames = <int, String>{};
       final materialCategories = <int, String>{};
 
-      final effectiveUsage = materialUsage.isNotEmpty ? materialUsage : <int, double>{for (var item in recipeItems) item.materialId: 1.0};
-
+      // FIX: Use actual recipe quantities, not 1.0 default
       for (var item in recipeItems) {
-        final qtyPerPiece = effectiveUsage[item.materialId] ?? 1.0;
+        // Try to get qty from materialUsage first, then use a small default (0.01) for fabric
+        double qtyPerPiece;
+        if (materialUsage.containsKey(item.materialId) && (materialUsage[item.materialId] ?? 0) > 0) {
+          qtyPerPiece = materialUsage[item.materialId]!;
+        } else {
+          // Fallback: fabric uses a tiny amount (grams), trim uses 1 unit
+          qtyPerPiece = item.isFabric ? 0.1 : 1.0;
+        }
+        
         final totalNeeded = qtyPerPiece * quantity;
         if (totalNeeded > 0) {
           materialsToDeduct[item.materialId] = totalNeeded;
@@ -100,6 +107,14 @@ class _RecordProductionScreenState extends State<RecordProductionScreen> {
     }
     setState(() => _isLoading = false);
   }
+
+    
+     
+        
+    
+
+
+
 
   void _showMessage(String message, {required bool isError}) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: isError ? AppColors.error : AppColors.success, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), margin: const EdgeInsets.all(16), duration: const Duration(seconds: 5)));
